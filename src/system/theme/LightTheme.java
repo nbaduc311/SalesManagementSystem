@@ -25,6 +25,7 @@ public class LightTheme extends AppTheme {
         setMenuBackgroundColor(new Color(230, 230, 230)); 
         setMenuButtonColor(new Color(210, 210, 210));     
         setMenuButtonHoverColor(new Color(190, 190, 190)); 
+        setMenuButtonPressColor(new Color(150, 150, 150)); 
         setMenuButtonForegroundColor(new Color(50, 50, 50)); 
 
         // General Button Colors

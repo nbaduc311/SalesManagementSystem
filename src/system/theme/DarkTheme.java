@@ -25,6 +25,7 @@ public class DarkTheme extends AppTheme {
         setMenuBackgroundColor(new Color(25, 25, 25)); 
         setMenuButtonColor(new Color(35, 35, 35));     
         setMenuButtonHoverColor(new Color(50, 50, 50)); 
+        setMenuButtonPressColor(new Color(100, 100, 100)); 
         setMenuButtonForegroundColor(new Color(220, 220, 220)); 
 
         // General Button Colors

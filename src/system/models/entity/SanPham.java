@@ -1,23 +1,31 @@
 package system.models.entity;
 
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Objects;
 
 public class SanPham {
-    private int internalID;
-    private String maSanPham;
+    private Integer internalID;
+    private String maSanPham; // Computed Column SP0001
     private String tenSanPham;
-    private int donGia;
-    private Date ngaySanXuat; // Can be null
-    private String thongSoKyThuat; // Can be null (NVARCHAR(MAX) implies potential large string)
+    private BigDecimal donGia;
+    private LocalDate ngaySanXuat;
+    private String thongSoKyThuat;
     private String maLoaiSanPham; // Foreign Key
-    private int soLuongTon; // Thêm thuộc tính này
 
+    // Constructors
     public SanPham() {
-        // Default constructor
     }
 
-    public SanPham(int internalID, String maSanPham, String tenSanPham, int donGia, Date ngaySanXuat, String thongSoKyThuat, String maLoaiSanPham, int soLuongTon) {
+    public SanPham(String tenSanPham, BigDecimal donGia, LocalDate ngaySanXuat, String thongSoKyThuat, String maLoaiSanPham) {
+        this.tenSanPham = tenSanPham;
+        this.donGia = donGia;
+        this.ngaySanXuat = ngaySanXuat;
+        this.thongSoKyThuat = thongSoKyThuat;
+        this.maLoaiSanPham = maLoaiSanPham;
+    }
+
+    public SanPham(Integer internalID, String maSanPham, String tenSanPham, BigDecimal donGia, LocalDate ngaySanXuat, String thongSoKyThuat, String maLoaiSanPham) {
         this.internalID = internalID;
         this.maSanPham = maSanPham;
         this.tenSanPham = tenSanPham;
@@ -25,106 +33,79 @@ public class SanPham {
         this.ngaySanXuat = ngaySanXuat;
         this.thongSoKyThuat = thongSoKyThuat;
         this.maLoaiSanPham = maLoaiSanPham;
-        this.soLuongTon = soLuongTon;
     }
 
-    // Constructor tiện lợi cho việc thêm sản phẩm mới
-    public SanPham(String tenSanPham, int donGia, Date ngaySanXuat, String thongSoKyThuat, String maLoaiSanPham, int soLuongTon) {
-        this(0, null, tenSanPham, donGia, ngaySanXuat, thongSoKyThuat, maLoaiSanPham, soLuongTon);
-    }
-
-    // Getters and Setters
-    public int getInternalID() {
+    // Getters
+    public Integer getInternalID() {
         return internalID;
-    }
-
-    public void setInternalID(int internalID) {
-        this.internalID = internalID;
     }
 
     public String getMaSanPham() {
         return maSanPham;
     }
 
-    public void setMaSanPham(String maSanPham) {
-        this.maSanPham = maSanPham;
-    }
-
     public String getTenSanPham() {
         return tenSanPham;
     }
 
-    public void setTenSanPham(String tenSanPham) {
-        this.tenSanPham = tenSanPham;
-    }
-
-    public int getDonGia() {
+    public BigDecimal getDonGia() {
         return donGia;
     }
 
-    public void setDonGia(int donGia) {
-        this.donGia = donGia;
-    }
-
-    public Date getNgaySanXuat() {
+    public LocalDate getNgaySanXuat() {
         return ngaySanXuat;
-    }
-
-    public void setNgaySanXuat(Date ngaySanXuat) {
-        this.ngaySanXuat = ngaySanXuat;
     }
 
     public String getThongSoKyThuat() {
         return thongSoKyThuat;
     }
 
-    public void setThongSoKyThuat(String thongSoKyThuat) {
-        this.thongSoKyThuat = thongSoKyThuat;
-    }
-
     public String getMaLoaiSanPham() {
         return maLoaiSanPham;
+    }
+
+    // Setters
+    public void setTenSanPham(String tenSanPham) {
+        this.tenSanPham = tenSanPham;
+    }
+
+    public void setDonGia(BigDecimal donGia) {
+        this.donGia = donGia;
+    }
+
+    public void setNgaySanXuat(LocalDate ngaySanXuat) {
+        this.ngaySanXuat = ngaySanXuat;
+    }
+
+    public void setThongSoKyThuat(String thongSoKyThuat) {
+        this.thongSoKyThuat = thongSoKyThuat;
     }
 
     public void setMaLoaiSanPham(String maLoaiSanPham) {
         this.maLoaiSanPham = maLoaiSanPham;
     }
-    
-    public int getSoLuongTon() { 
-        return soLuongTon;
-    }
 
-    public void setSoLuongTon(int soLuongTon) { 
-        this.soLuongTon = soLuongTon;
-    }
-    
-    
-
-    @Override
-    public String toString() {
-        return "SanPham{" +
-               "internalID=" + internalID +
-               ", maSanPham='" + maSanPham + '\'' +
-               ", tenSanPham='" + tenSanPham + '\'' +
-               ", donGia=" + donGia +
-               ", ngaySanXuat=" + ngaySanXuat +
-               ", thongSoKyThuat='" + thongSoKyThuat + '\'' +
-               ", maLoaiSanPham='" + maLoaiSanPham + '\'' +
-               ", soLuongTon=" + soLuongTon + // Thêm soLuongTon vào toString
-               '}';
-    }
-    
+    // Override equals(), hashCode(), toString()
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         SanPham sanPham = (SanPham) o;
-        return internalID == sanPham.internalID &&
-               Objects.equals(maSanPham, sanPham.maSanPham);
+        return Objects.equals(maSanPham, sanPham.maSanPham);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(internalID, maSanPham);
+        return Objects.hash(maSanPham);
+    }
+
+    @Override
+    public String toString() {
+        return "SanPham{" +
+               "maSanPham='" + maSanPham + '\'' +
+               ", tenSanPham='" + tenSanPham + '\'' +
+               ", donGia=" + donGia +
+               ", maLoaiSanPham='" + maLoaiSanPham + '\'' +
+               '}';
     }
 }

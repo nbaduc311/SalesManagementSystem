@@ -1,83 +1,78 @@
 package system.models.entity;
 
-import java.util.Objects; // Import for Objects.hash and Objects.equals
+import java.util.Objects;
 
-//Lớp LoaiSanPham (ProductCategory)
 public class LoaiSanPham {
- private int internalID;
- private String maLoaiSanPham;
- private String tenLoaiSanPham;
- private String moTa; // Can be null
+    private Integer internalID;
+    private String maLoaiSanPham; // Computed Column LSP0001
+    private String tenLoaiSanPham;
+    private String moTa; // NVARCHAR(MAX)
 
- public LoaiSanPham() {
-     // Default constructor
- }
+    // Constructors
+    public LoaiSanPham() {
+    }
 
- public LoaiSanPham(int internalID, String maLoaiSanPham, String tenLoaiSanPham, String moTa) {
-     this.internalID = internalID;
-     this.maLoaiSanPham = maLoaiSanPham;
-     this.tenLoaiSanPham = tenLoaiSanPham;
-     this.moTa = moTa;
- }
+    public LoaiSanPham(String tenLoaiSanPham, String moTa) {
+        this.tenLoaiSanPham = tenLoaiSanPham;
+        this.moTa = moTa;
+    }
 
- public LoaiSanPham(String tenLoaiSanPham, String moTa) {
-     this(0, null, tenLoaiSanPham, moTa);
- }
+    public LoaiSanPham(Integer internalID, String maLoaiSanPham, String tenLoaiSanPham, String moTa) {
+        this.internalID = internalID;
+        this.maLoaiSanPham = maLoaiSanPham;
+        this.tenLoaiSanPham = tenLoaiSanPham;
+        this.moTa = moTa;
+    }
 
- // Getters and Setters
- public int getInternalID() {
-     return internalID;
- }
+    // Getters
+    public Integer getInternalID() {
+        return internalID;
+    }
 
- public void setInternalID(int internalID) {
-     this.internalID = internalID;
- }
+    public String getMaLoaiSanPham() {
+        return maLoaiSanPham;
+    }
 
- public String getMaLoaiSanPham() {
-     return maLoaiSanPham;
- }
+    public String getTenLoaiSanPham() {
+        return tenLoaiSanPham;
+    }
 
- public void setMaLoaiSanPham(String maLoaiSanPham) {
-     this.maLoaiSanPham = maLoaiSanPham;
- }
+    public String getMoTa() {
+        return moTa;
+    }
 
- public String getTenLoaiSanPham() {
-     return tenLoaiSanPham;
- }
+    // Setters
+    public void setMaLoaiSanPham(String maLoaiSanPham) {
+        this.maLoaiSanPham = maLoaiSanPham;
+    }
+    
+    public void setTenLoaiSanPham(String tenLoaiSanPham) {
+        this.tenLoaiSanPham = tenLoaiSanPham;
+    }
 
- public void setTenLoaiSanPham(String tenLoaiSanPham) {
-     this.tenLoaiSanPham = tenLoaiSanPham;
- }
+    public void setMoTa(String moTa) {
+        this.moTa = moTa;
+    }
 
- public String getMoTa() {
-     return moTa;
- }
+    // Override equals(), hashCode(), toString()
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        LoaiSanPham that = (LoaiSanPham) o;
+        return Objects.equals(maLoaiSanPham, that.maLoaiSanPham);
+    }
 
- public void setMoTa(String moTa) {
-     this.moTa = moTa;
- }
+    @Override
+    public int hashCode() {
+        return Objects.hash(maLoaiSanPham);
+    }
 
- @Override
- public String toString() {
-     return "LoaiSanPham{" +
-            "internalID=" + internalID +
-            ", maLoaiSanPham='" + maLoaiSanPham + '\'' +
-            ", tenLoaiSanPham='" + tenLoaiSanPham + '\'' +
-            ", moTa='" + moTa + '\'' +
-            '}';
- }
-
- @Override
- public boolean equals(Object o) {
-     if (this == o) return true;
-     if (o == null || getClass() != o.getClass()) return false;
-     LoaiSanPham that = (LoaiSanPham) o;
-     return internalID == that.internalID &&
-            Objects.equals(maLoaiSanPham, that.maLoaiSanPham);
- }
-
- @Override
- public int hashCode() {
-     return Objects.hash(internalID, maLoaiSanPham);
- }
+    @Override
+    public String toString() {
+        return "LoaiSanPham{" +
+               "maLoaiSanPham='" + maLoaiSanPham + '\'' +
+               ", tenLoaiSanPham='" + tenLoaiSanPham + '\'' +
+               '}';
+    }
 }

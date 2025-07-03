@@ -1,156 +1,152 @@
 package system.models.entity;
 
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Objects;
 
-//Lớp NhanVien (Employee)
 public class NhanVien {
- private int internalID;
- private String maNhanVien;
- private String maNguoiDung;
- private String hoTen;
- private Date ngaySinh;
- private String gioiTinh;
- private String cccd;
- private String sdt;
- private int luong;
- private String trangThaiLamViec;
+    private Integer internalID;
+    private String maNhanVien; // Computed Column NV001
+    private String maNguoiDung; // Foreign Key
+    private String hoTen;
+    private LocalDate ngaySinh;
+    private String gioiTinh;
+    private String cccd;
+    private String sdt;
+    private BigDecimal luong;
+    private String trangThaiLamViec;
 
- public NhanVien() {
-     // Default constructor
- }
+    // Constructors
+    public NhanVien() {
+    }
 
- public NhanVien(int internalID, String maNhanVien, String maNguoiDung, String hoTen, Date ngaySinh, String gioiTinh, String cccd, String sdt, int luong, String trangThaiLamViec) {
-     this.internalID = internalID;
-     this.maNhanVien = maNhanVien;
-     this.maNguoiDung = maNguoiDung;
-     this.hoTen = hoTen;
-     this.ngaySinh = ngaySinh;
-     this.gioiTinh = gioiTinh;
-     this.cccd = cccd;
-     this.sdt = sdt;
-     this.luong = luong;
-     this.trangThaiLamViec = trangThaiLamViec;
- }
+    public NhanVien(String maNguoiDung, String hoTen, LocalDate ngaySinh, String gioiTinh, String cccd, String sdt, BigDecimal luong, String trangThaiLamViec) {
+        this.maNguoiDung = maNguoiDung;
+        this.hoTen = hoTen;
+        this.ngaySinh = ngaySinh;
+        this.gioiTinh = gioiTinh;
+        this.cccd = cccd;
+        this.sdt = sdt;
+        this.luong = luong;
+        this.trangThaiLamViec = trangThaiLamViec;
+    }
 
- // Constructor tiện lợi cho việc thêm nhân viên mới
- public NhanVien(String maNguoiDung, String hoTen, Date ngaySinh, String gioiTinh, String cccd, String sdt, int luong, String trangThaiLamViec) {
-     this(0, null, maNguoiDung, hoTen, ngaySinh, gioiTinh, cccd, sdt, luong, trangThaiLamViec);
- }
+    public NhanVien(Integer internalID, String maNhanVien, String maNguoiDung, String hoTen, LocalDate ngaySinh, String gioiTinh, String cccd, String sdt, BigDecimal luong, String trangThaiLamViec) {
+        this.internalID = internalID;
+        this.maNhanVien = maNhanVien;
+        this.maNguoiDung = maNguoiDung;
+        this.hoTen = hoTen;
+        this.ngaySinh = ngaySinh;
+        this.gioiTinh = gioiTinh;
+        this.cccd = cccd;
+        this.sdt = sdt;
+        this.luong = luong;
+        this.trangThaiLamViec = trangThaiLamViec;
+    }
 
- // Getters and Setters
- public int getInternalID() {
-     return internalID;
- }
+    // Getters
+    public Integer getInternalID() {
+        return internalID;
+    }
 
- public void setInternalID(int internalID) {
-     this.internalID = internalID;
- }
+    public String getMaNhanVien() {
+        return maNhanVien;
+    }
 
- public String getMaNhanVien() {
-     return maNhanVien;
- }
+    public String getMaNguoiDung() {
+        return maNguoiDung;
+    }
 
- public void setMaNhanVien(String maNhanVien) {
-     this.maNhanVien = maNhanVien;
- }
+    public String getHoTen() {
+        return hoTen;
+    }
 
- public String getMaNguoiDung() {
-     return maNguoiDung;
- }
+    public LocalDate getNgaySinh() {
+        return ngaySinh;
+    }
 
- public void setMaNguoiDung(String maNguoiDung) {
-     this.maNguoiDung = maNguoiDung;
- }
+    public String getGioiTinh() {
+        return gioiTinh;
+    }
 
- public String getHoTen() {
-     return hoTen;
- }
+    public String getCccd() {
+        return cccd;
+    }
 
- public void setHoTen(String hoTen) {
-     this.hoTen = hoTen;
- }
+    public String getSdt() {
+        return sdt;
+    }
 
- public Date getNgaySinh() {
-     return ngaySinh;
- }
+    public BigDecimal getLuong() {
+        return luong;
+    }
 
- public void setNgaySinh(Date ngaySinh) {
-     this.ngaySinh = ngaySinh;
- }
+    public String getTrangThaiLamViec() {
+        return trangThaiLamViec;
+    }
 
- public String getGioiTinh() {
-     return gioiTinh;
- }
+    // Setters
+    public void setInternalID(Integer internalID) { // Thêm setter cho internalID nếu cần
+        this.internalID = internalID;
+    }
 
- public void setGioiTinh(String gioiTinh) {
-     this.gioiTinh = gioiTinh;
- }
+    public void setMaNhanVien(String maNhanVien) { // Đã thêm setter này
+        this.maNhanVien = maNhanVien;
+    }
 
- public String getCccd() {
-     return cccd;
- }
+    public void setMaNguoiDung(String maNguoiDung) {
+        this.maNguoiDung = maNguoiDung;
+    }
 
- public void setCccd(String cccd) {
-     this.cccd = cccd;
- }
+    public void setHoTen(String hoTen) {
+        this.hoTen = hoTen;
+    }
 
- public String getSdt() {
-     return sdt;
- }
+    public void setNgaySinh(LocalDate ngaySinh) {
+        this.ngaySinh = ngaySinh;
+    }
 
- public void setSdt(String sdt) {
-     this.sdt = sdt;
- }
+    public void setGioiTinh(String gioiTinh) {
+        this.gioiTinh = gioiTinh;
+    }
 
- public int getLuong() {
-     return luong;
- }
+    public void setCccd(String cccd) {
+        this.cccd = cccd;
+    }
 
- public void setLuong(int luong) {
-     this.luong = luong;
- }
+    public void setSdt(String sdt) {
+        this.sdt = sdt;
+    }
 
- public String getTrangThaiLamViec() {
-     return trangThaiLamViec;
- }
+    public void setLuong(BigDecimal luong) {
+        this.luong = luong;
+    }
 
- public void setTrangThaiLamViec(String trangThaiLamViec) {
-     this.trangThaiLamViec = trangThaiLamViec;
- }
+    public void setTrangThaiLamViec(String trangThaiLamViec) {
+        this.trangThaiLamViec = trangThaiLamViec;
+    }
 
- @Override
- public String toString() {
-     return "NhanVien{" +
-            "internalID=" + internalID +
-            ", maNhanVien='" + maNhanVien + '\'' +
-            ", maNguoiDung='" + maNguoiDung + '\'' +
-            ", hoTen='" + hoTen + '\'' +
-            ", ngaySinh=" + ngaySinh + '\'' +
-            ", gioiTinh='" + gioiTinh + '\'' +
-            ", cccd='" + cccd + '\'' +
-            ", sdt='" + sdt + '\'' +
-            ", luong=" + luong +
-            ", trangThaiLamViec='" + trangThaiLamViec + '\'' +
-            '}';
- }
+    // Override equals(), hashCode(), toString()
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        NhanVien nhanVien = (NhanVien) o;
+        return Objects.equals(maNhanVien, nhanVien.maNhanVien);
+    }
 
- @Override
- public boolean equals(Object o) {
-     if (this == o) return true;
-     if (o == null || getClass() != o.getClass()) return false;
-     NhanVien nhanVien = (NhanVien) o;
-     return internalID == nhanVien.internalID &&
-            Objects.equals(maNhanVien, nhanVien.maNhanVien);
- }
+    @Override
+    public int hashCode() {
+        return Objects.hash(maNhanVien);
+    }
 
- @Override
- public int hashCode() {
-     return Objects.hash(internalID, maNhanVien);
- }
-
-public String getEmail() {
-	// TODO Auto-generated method stub
-	return null;
-}
+    @Override
+    public String toString() {
+        return "NhanVien{" +
+                "maNhanVien='" + maNhanVien + '\'' +
+                ", hoTen='" + hoTen + '\'' +
+                ", sdt='" + sdt + '\'' +
+                ", trangThaiLamViec='" + trangThaiLamViec + '\'' +
+                '}';
+    }
 }

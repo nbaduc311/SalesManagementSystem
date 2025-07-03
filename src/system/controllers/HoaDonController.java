@@ -1,370 +1,529 @@
 package system.controllers;
 
-import system.view.HoaDonView;
-import system.view.CustomerSelectionDialog; // Dialog to select registered customer
-import system.services.HoaDonService; // Đã đổi thành Service (chữ hoa)
-import system.services.SanPhamService; // Đã đổi thành Service (chữ hoa)
-import system.services.KhachHangService; // Đã đổi thành Service (chữ hoa)
-import system.models.entity.HoaDon;
-import system.models.entity.ChiTietHoaDon;
-import system.models.entity.SanPham;
-import system.models.entity.KhachHang;
-import system.models.entity.NhanVien;
-import system.services.NhanVienService; // Đã đổi thành Service (chữ hoa)
+import system.database.DatabaseConnection;
+import system.models.entity.*;
+import system.services.*;
+import system.view.panels.HoaDonView;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.sql.SQLException; // Import SQLException
-import java.util.Date;
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.Vector;
 import java.util.stream.Collectors;
 
-/**
- * Lớp SalesController điều khiển logic nghiệp vụ cho giao diện bán hàng (SalesView).
- * Nó tương tác với HoaDonService, SanPhamService, KhachHangService và NhanVienService.
- */
 public class HoaDonController {
+
     private HoaDonView view;
     private HoaDonService hoaDonService;
+    private ChiTietHoaDonService chiTietHoaDonService;
     private SanPhamService sanPhamService;
     private KhachHangService khachHangService;
-    private NhanVienService nhanVienService; // To get current logged-in employee
+    private NhanVienService nhanVienService; // Có thể không cần nếu maNhanVienLap được truyền trực tiếp
+    private ChiTietViTriService chiTietViTriService;
 
-    private String currentLoggedInEmployeeMaNhanVien; // Mã nhân viên đang đăng nhập
+    private String maNhanVienLap; // Mã nhân viên lập hóa đơn (đăng nhập)
 
-    /**
-     * Constructor khởi tạo SalesController.
-     *
-     * @param view Instance của SalesView.
-     * @param hoaDonService Instance của HoaDonService.
-     * @param sanPhamService Instance của SanPhamService.
-     * @param khachHangService Instance của KhachHangService.
-     * @param nhanVienService Instance của NhanVienService.
-     * @param maNhanVienLapHienTai Mã nhân viên hiện đang đăng nhập (người tạo hóa đơn).
-     */
-    public HoaDonController(HoaDonView view, HoaDonService hoaDonService, SanPhamService sanPhamService,
-                           KhachHangService khachHangService, NhanVienService nhanVienService, String maNhanVienLapHienTai) {
+    // Temporary storage for selected product details for adding to cart
+    private SanPham selectedProductInSearch;
+
+    public HoaDonController(HoaDonView view,
+                            HoaDonService hoaDonService,
+                            ChiTietHoaDonService chiTietHoaDonService,
+                            SanPhamService sanPhamService,
+                            KhachHangService khachHangService,
+                            NhanVienService nhanVienService,
+                            ChiTietViTriService chiTietViTriService,
+                            String maNhanVienLap) {
         this.view = view;
         this.hoaDonService = hoaDonService;
+        this.chiTietHoaDonService = chiTietHoaDonService;
         this.sanPhamService = sanPhamService;
         this.khachHangService = khachHangService;
-        this.nhanVienService = nhanVienService;
-        this.currentLoggedInEmployeeMaNhanVien = maNhanVienLapHienTai; // Lấy từ thông tin người dùng đăng nhập
+        this.nhanVienService = nhanVienService; // Vẫn giữ lại nếu cần các thao tác khác với NV
+        this.chiTietViTriService = chiTietViTriService;
+        this.maNhanVienLap = maNhanVienLap;
 
-        // Đăng ký các listener cho các thành phần UI
-        this.view.addSelectCustomerButtonListener(new SelectCustomerButtonListener());
-        this.view.addSearchProductButtonListener(new SearchProductButtonListener());
-        this.view.addAddProductToCartButtonListener(new AddProductToCartButtonListener());
-        this.view.addRemoveProductFromCartButtonListener(new RemoveProductFromCartButtonListener());
-        this.view.addUpdateQuantityInCartButtonListener(new UpdateQuantityInCartButtonListener());
-        this.view.addCreateInvoiceButtonListener(new CreateInvoiceButtonListener());
-        this.view.addClearFormButtonListener(new ClearFormButtonListener());
-        this.view.addRegisteredCustomerRadioButtonListener(new CustomerTypeChangeListener());
-        this.view.addWalkInCustomerRadioButtonListener(new CustomerTypeChangeListener());
-        this.view.getCbProductList().addItemListener(new ProductComboBoxListener());
-        this.view.getCartTable().getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                // Handle selection change in cart table if needed (e.g., enable/disable update/remove buttons)
-            }
-        });
+        initListeners();
+        // Khởi tạo ban đầu cho các combobox hoặc dữ liệu khác nếu cần
+        refreshProductComboBox(""); // Load all products initially
     }
 
-    /**
-     * Xử lý sự kiện thay đổi loại khách hàng (đã đăng ký/vãng lai).
-     */
-    class CustomerTypeChangeListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            if (view.getRbRegisteredCustomer().isSelected()) {
-                view.toggleCustomerFields(true);
-            } else {
-                view.toggleCustomerFields(false);
-            }
-            view.clearCustomerFields(); // Xóa thông tin cũ khi đổi loại
-        }
+    private void initListeners() {
+        // Radio Button Listeners
+        view.addRegisteredCustomerRadioButtonListener(e -> view.toggleCustomerFields(true));
+        view.addWalkInCustomerRadioButtonListener(e -> {
+            view.clearCustomerFields();
+            view.toggleCustomerFields(false);
+        });
+
+        // Customer Selection
+        view.addSelectCustomerButtonListener(e -> handleSelectCustomer());
+
+        // Product Search and Selection
+        view.addSearchProductButtonListener(e -> handleSearchProduct());
+        view.getCbProductList().addActionListener(e -> handleProductComboBoxSelection());
+        view.addAddProductToCartButtonListener(e -> handleAddProductToCart());
+
+        // Cart Actions
+        view.addRemoveProductFromCartButtonListener(e -> handleRemoveProductFromCart());
+        view.addUpdateQuantityInCartButtonListener(e -> handleUpdateQuantityInCart());
+
+        // Finalize Invoice Actions
+        view.addCreateInvoiceButtonListener(e -> handleCreateInvoice());
+        view.addClearFormButtonListener(e -> handleClearForm());
     }
 
     /**
      * Xử lý sự kiện khi nhấn nút "Chọn khách hàng".
-     * Mở dialog cho phép chọn khách hàng đã đăng ký.
+     * Mở một dialog để người dùng chọn khách hàng đã đăng ký.
      */
-    class SelectCustomerButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            List<KhachHang> allCustomers;
-            allCustomers = khachHangService.getAllKhachHang();
-            
-            CustomerSelectionDialog dialog = new CustomerSelectionDialog((JFrame) SwingUtilities.getWindowAncestor(view), allCustomers);
-            dialog.setVisible(true);
+    private void handleSelectCustomer() {
+        // Đây là nơi bạn sẽ mở một dialog chọn khách hàng.
+        // Giả sử bạn có một dialog tên là KhachHangSelectionDialog
+        // và nó trả về đối tượng KhachHang đã chọn.
+        
+        // Để đơn giản, tôi sẽ tạo một KhachHang giả lập ở đây.
+        // Trong ứng dụng thực tế, bạn sẽ khởi tạo dialog và lấy kết quả từ nó.
 
-            KhachHang selectedCustomer = dialog.getSelectedCustomer();
-            if (selectedCustomer != null) {
-                view.displaySelectedCustomer(selectedCustomer);
-                view.displayMessage("Đã chọn khách hàng: " + selectedCustomer.getHoTen(), false);
-            } else {
-                view.displayMessage("Không có khách hàng nào được chọn.", false);
+        // Ví dụ giả định KhachHangSelectionDialog:
+        // KhachHang selectedKh = KhachHangSelectionDialog.showDialog(SwingUtilities.getWindowAncestor(view), khachHangService);
+        // if (selectedKh != null) {
+        //     view.displaySelectedCustomer(selectedKh);
+        // } else {
+        //     view.displayMessage("Chưa chọn khách hàng.", false);
+        // }
+
+        // DEMO: Thay thế bằng dialog thực tế của bạn
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            List<KhachHang> allKh = khachHangService.getAllKhachHang(conn);
+            if (allKh.isEmpty()) {
+                view.displayMessage("Không có khách hàng nào trong hệ thống.", true);
+                return;
             }
+
+            // Tạo một JComboBox để chọn khách hàng
+            JComboBox<KhachHang> khComboBox = new JComboBox<>(allKh.toArray(new KhachHang[0]));
+            int result = JOptionPane.showConfirmDialog(view, khComboBox, "Chọn Khách Hàng", JOptionPane.OK_CANCEL_OPTION);
+
+            if (result == JOptionPane.OK_OPTION) {
+                KhachHang selectedKh = (KhachHang) khComboBox.getSelectedItem();
+                view.displaySelectedCustomer(selectedKh);
+            }
+        } catch (SQLException ex) {
+            view.displayMessage("Lỗi khi tải danh sách khách hàng: " + ex.getMessage(), true);
+            ex.printStackTrace();
         }
     }
 
+
     /**
-     * Xử lý sự kiện khi nhấn nút "Tìm SP".
-     * Tìm kiếm sản phẩm theo tên và hiển thị kết quả lên ComboBox.
+     * Xử lý tìm kiếm sản phẩm theo từ khóa và hiển thị trong combobox.
      */
-    class SearchProductButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            String searchTerm = view.getTxtSearchProduct().getText().trim();
+    private void handleSearchProduct() {
+        String searchTerm = view.getTxtSearchProduct().getText().trim();
+        refreshProductComboBox(searchTerm);
+    }
+
+    /**
+     * Cập nhật JComboBox danh sách sản phẩm và hiển thị thông tin tồn kho/giá.
+     *
+     * @param searchTerm Tên sản phẩm để tìm kiếm (rỗng để lấy tất cả).
+     */
+    private void refreshProductComboBox(String searchTerm) {
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            List<SanPham> sanPhamList;
             if (searchTerm.isEmpty()) {
-                view.displayMessage("Vui lòng nhập tên sản phẩm để tìm kiếm.", true);
-                view.populateProductComboBox(List.of()); // Clear previous results
-                return;
-            }
-
-            List<SanPham> foundProducts = sanPhamService.searchSanPhamByName(searchTerm);
-            if (foundProducts.isEmpty()) {
-                view.displayMessage("Không tìm thấy sản phẩm nào với từ khóa '" + searchTerm + "'.", false);
-                view.populateProductComboBox(List.of());
+                sanPhamList = sanPhamService.getAllSanPham(conn);
             } else {
-                // Populate the combo box with product names
-                List<String> productNames = foundProducts.stream()
-                        .map(SanPham::getTenSanPham)
-                        .collect(Collectors.toList());
-                view.populateProductComboBox(productNames);
-                view.displayMessage("Tìm thấy " + foundProducts.size() + " sản phẩm.", false);
-                // The first item will be selected by default, trigger its selection to show details
-                if (!productNames.isEmpty()) {
-                    view.getCbProductList().setSelectedIndex(0);
-                }
+                sanPhamList = sanPhamService.searchSanPhamByName(conn, searchTerm);
             }
+
+            // Lưu trữ toàn bộ đối tượng SanPham vào cbProductList để dễ truy xuất
+            // Thay vì chỉ lưu tên, ta sẽ lưu SanPham và hiển thị tên
+            view.getCbProductList().removeAllItems();
+            for (SanPham sp : sanPhamList) {
+                view.getCbProductList().addItem(sp.getTenSanPham());
+            }
+
+            // Cập nhật selectedProductInSearch
+            if (!sanPhamList.isEmpty()) {
+                selectedProductInSearch = sanPhamList.get(0); // Select first one by default
+                view.getCbProductList().setSelectedIndex(0);
+                // Call handleProductComboBoxSelection explicitly to update details
+                handleProductComboBoxSelection();
+            } else {
+                selectedProductInSearch = null;
+                view.displaySelectedProductDetails(null,0); // Clear details
+            }
+            view.displayMessage("Đã tìm thấy " + sanPhamList.size() + " sản phẩm.", false);
+
+        } catch (SQLException ex) {
+            view.displayMessage("Lỗi khi tìm kiếm sản phẩm: " + ex.getMessage(), true);
+            ex.printStackTrace();
+        } finally {
+            DatabaseConnection.closeConnection(conn);
         }
     }
 
     /**
-     * Xử lý sự kiện khi chọn một sản phẩm từ ComboBox.
-     * Hiển thị chi tiết sản phẩm đã chọn.
+     * Xử lý khi người dùng chọn một sản phẩm từ ComboBox.
+     * Cập nhật thông tin giá và tồn kho.
      */
-    class ProductComboBoxListener implements ItemListener {
-        @Override
-        public void itemStateChanged(ItemEvent e) {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                String selectedProductName = (String) view.getCbProductList().getSelectedItem();
-                if (selectedProductName != null) {
-                    SanPham product = sanPhamService.getSanPhamByTen(selectedProductName); // Lấy sản phẩm theo tên chính xác
-                    view.displaySelectedProductDetails(product);
+    private void handleProductComboBoxSelection() {
+        String selectedProductName = (String) view.getCbProductList().getSelectedItem();
+        if (selectedProductName != null) {
+            Connection conn = null;
+            try {
+                conn = DatabaseConnection.getConnection();
+                List<SanPham> sanPhamList = sanPhamService.searchSanPhamByName(conn, selectedProductName);
+                Optional<SanPham> matchingProduct = sanPhamList.stream()
+                        .filter(sp -> sp.getTenSanPham().equals(selectedProductName))
+                        .findFirst();
+
+                if (matchingProduct.isPresent()) {
+                    selectedProductInSearch = matchingProduct.get();
+                    // Lấy tổng số lượng tồn kho từ ChiTietViTri
+                    int totalStock = checkProductStock(selectedProductInSearch.getMaSanPham());
+                    
+                    // Cập nhật số lượng tồn kho của SanPham object trong bộ nhớ để tiện sử dụng
+                    // Mặc dù SanPham.soLuongTon không có trong entity, ta có thể giả định nó là một thuộc tính ảo
+                    // hoặc chỉ hiển thị nó trực tiếp mà không cần lưu vào entity.
+                    // Để đơn giản, tôi sẽ cập nhật trực tiếp nhãn hiển thị.
+                    // Nếu SanPham entity có thuộc tính soLuongTon, bạn nên cập nhật nó.
+                    // For now, I'll pass SanPham to displaySelectedProductDetails, and it'll handle displaying stock
+                    SanPham productWithStock = selectedProductInSearch;
+                    // Note: If SanPham entity has a setSoLuongTon method, you could set it here.
+                    // For now, I'll pass the stock value separately or display it directly in the view.
+                    // Given your HoaDonView, it takes SanPham and assumes SanPham.getSoLuongTon() exists.
+                    // Let's modify SanPham to include soLuongTon for clarity.
+                    // For now, directly display it in the label.
+                    view.displaySelectedProductDetails(productWithStock,totalStock); // This should update price
+                    view.getLblSelectedProductStock().setText("Tồn: " + totalStock); // Update stock label separately
+                } else {
+                    selectedProductInSearch = null;
+                    view.displaySelectedProductDetails(null,0);
                 }
+            } catch (SQLException ex) {
+                view.displayMessage("Lỗi khi tải chi tiết sản phẩm: " + ex.getMessage(), true);
+                ex.printStackTrace();
+            } finally {
+                DatabaseConnection.closeConnection(conn);
             }
+        } else {
+            selectedProductInSearch = null;
+            view.displaySelectedProductDetails(null,0);
+        }
+    }
+
+
+    /**
+     * Kiểm tra tổng số lượng tồn kho của một sản phẩm từ tất cả các vị trí.
+     * @param maSanPham Mã sản phẩm cần kiểm tra.
+     * @return Tổng số lượng tồn kho.
+     */
+    private int checkProductStock(String maSanPham) {
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            List<ChiTietViTri> chiTietViTriList = chiTietViTriService.getChiTietViTriByMaSanPham(conn, maSanPham);
+            return chiTietViTriList.stream().mapToInt(ChiTietViTri::getSoLuong).sum();
+        } catch (SQLException e) {
+            view.displayMessage("Lỗi khi kiểm tra số lượng tồn kho: " + e.getMessage(), true);
+            e.printStackTrace();
+            return 0; // Trả về 0 nếu có lỗi
+        } finally {
+            DatabaseConnection.closeConnection(conn);
         }
     }
 
     /**
-     * Xử lý sự kiện khi nhấn nút "Thêm vào hóa đơn".
-     * Thêm sản phẩm được chọn vào giỏ hàng.
+     * Thêm sản phẩm đã chọn vào giỏ hàng (bảng chi tiết hóa đơn).
      */
-    class AddProductToCartButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            SanPham selectedProduct = view.getSelectedProductInComboBox();
-            if (selectedProduct == null) {
-                view.displayMessage("Vui lòng chọn một sản phẩm để thêm vào hóa đơn.", true);
+    private void handleAddProductToCart() {
+        if (selectedProductInSearch == null) {
+            view.displayMessage("Vui lòng chọn một sản phẩm.", true);
+            return;
+        }
+
+        int quantity;
+        try {
+            quantity = Integer.parseInt(view.getTxtQuantity().getText().trim());
+            if (quantity <= 0) {
+                view.displayMessage("Số lượng phải lớn hơn 0.", true);
+                return;
+            }
+        } catch (NumberFormatException ex) {
+            view.displayMessage("Số lượng không hợp lệ.", true);
+            return;
+        }
+
+        int currentStock = checkProductStock(selectedProductInSearch.getMaSanPham());
+        if (quantity > currentStock) {
+            view.displayMessage("Không đủ số lượng tồn kho cho sản phẩm này. Tồn: " + currentStock, true);
+            return;
+        }
+
+        // Check if the product already exists in the cart, if so, update quantity
+        Optional<ChiTietHoaDon> existingItem = view.getCurrentCartItems().stream()
+                .filter(item -> item.getMaSanPham().equals(selectedProductInSearch.getMaSanPham()))
+                .findFirst();
+
+        if (existingItem.isPresent()) {
+            ChiTietHoaDon cthd = existingItem.get();
+            int newTotalQuantity = cthd.getSoLuong() + quantity;
+            if (newTotalQuantity > currentStock) {
+                view.displayMessage("Tổng số lượng sản phẩm trong giỏ hàng vượt quá tồn kho. Tồn: " + currentStock, true);
+                return;
+            }
+            // Update the quantity directly in the view's cart
+            // Find the row index to update in the table model
+            for (int i = 0; i < view.getCartTableModel().getRowCount(); i++) {
+                if (view.getCartTableModel().getValueAt(i, 0).equals(selectedProductInSearch.getMaSanPham())) {
+                    view.updateProductQuantityInCart(i, newTotalQuantity, selectedProductInSearch);
+                    view.displayMessage("Đã cập nhật số lượng sản phẩm trong giỏ hàng.", false);
+                    return;
+                }
+            }
+        } else {
+            // Add new item
+            ChiTietHoaDon cthd = new ChiTietHoaDon();
+            cthd.setMaSanPham(selectedProductInSearch.getMaSanPham());
+            cthd.setSoLuong(quantity);
+            cthd.setDonGiaBan(selectedProductInSearch.getDonGia()); // Lấy đơn giá từ SanPham
+
+            view.addProductToCart(cthd, selectedProductInSearch);
+            view.displayMessage("Đã thêm sản phẩm vào giỏ hàng.", false);
+        }
+    }
+
+    /**
+     * Cập nhật số lượng của một sản phẩm đã có trong giỏ hàng.
+     */
+    private void handleUpdateQuantityInCart() {
+        int selectedRow = view.getCartTable().getSelectedRow();
+        if (selectedRow == -1) {
+            view.displayMessage("Vui lòng chọn sản phẩm cần sửa số lượng trong giỏ hàng.", true);
+            return;
+        }
+
+        String maSanPham = view.getCartTableModel().getValueAt(selectedRow, 0).toString();
+        
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            SanPham sanPham = sanPhamService.getSanPhamById(conn, maSanPham);
+            if (sanPham == null) {
+                view.displayMessage("Không tìm thấy thông tin sản phẩm này.", true);
                 return;
             }
 
-            int quantity;
+            String input = JOptionPane.showInputDialog(view, "Nhập số lượng mới cho sản phẩm " + sanPham.getTenSanPham() + ":",
+                    view.getCartTableModel().getValueAt(selectedRow, 3).toString());
+            
+            if (input == null || input.trim().isEmpty()) {
+                return; // User cancelled or entered empty string
+            }
+
+            int newQuantity;
             try {
-                quantity = Integer.parseInt(view.getTxtQuantity().getText().trim());
-                if (quantity <= 0) {
+                newQuantity = Integer.parseInt(input.trim());
+                if (newQuantity <= 0) {
                     view.displayMessage("Số lượng phải lớn hơn 0.", true);
                     return;
                 }
             } catch (NumberFormatException ex) {
-                view.displayMessage("Số lượng không hợp lệ. Vui lòng nhập số nguyên.", true);
+                view.displayMessage("Số lượng không hợp lệ.", true);
                 return;
-            }
-
-            // Check if product is already in cart, if so, get its current quantity in cart
-            int currentQuantityInCart = 0;
-            for (ChiTietHoaDon item : view.getCurrentCartItems()) {
-                if (item.getMaSanPham().equals(selectedProduct.getMaSanPham())) {
-                    currentQuantityInCart = item.getSoLuong();
-                    break;
-                }
             }
             
-            // Check total quantity needed against stock
-            if (selectedProduct.getSoLuongTon() < (quantity + currentQuantityInCart)) {
-                view.displayMessage("Số lượng tồn kho không đủ cho sản phẩm này (" + selectedProduct.getSoLuongTon() + ").", true);
+            int currentStock = checkProductStock(maSanPham);
+            if (newQuantity > currentStock) {
+                view.displayMessage("Số lượng mới vượt quá tồn kho. Tồn: " + currentStock, true);
                 return;
             }
 
-            // Create ChiTietHoaDon object
-            ChiTietHoaDon cthd = new ChiTietHoaDon();
-            cthd.setMaSanPham(selectedProduct.getMaSanPham());
-            cthd.setSoLuong(quantity);
-            cthd.setThanhTien(quantity * selectedProduct.getDonGia()); // Calculate subtotal
+            view.updateProductQuantityInCart(selectedRow, newQuantity, sanPham);
+            view.displayMessage("Đã cập nhật số lượng sản phẩm.", false);
 
-            view.addProductToCart(cthd, selectedProduct); // Pass SanPham to get its name for display
-            view.displayMessage("Đã thêm '" + selectedProduct.getTenSanPham() + "' vào hóa đơn.", false);
+        } catch (SQLException ex) {
+            view.displayMessage("Lỗi khi cập nhật số lượng: " + ex.getMessage(), true);
+            ex.printStackTrace();
+        } finally {
+            DatabaseConnection.closeConnection(conn);
         }
     }
 
     /**
-     * Xử lý sự kiện khi nhấn nút "Xóa SP khỏi hóa đơn".
      * Xóa sản phẩm được chọn khỏi giỏ hàng.
      */
-    class RemoveProductFromCartButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            int selectedRow = view.getCartTable().getSelectedRow();
-            if (selectedRow == -1) {
-                view.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để xóa.", true);
-                return;
-            }
+    private void handleRemoveProductFromCart() {
+        int selectedRow = view.getCartTable().getSelectedRow();
+        if (selectedRow == -1) {
+            view.displayMessage("Vui lòng chọn sản phẩm cần xóa khỏi giỏ hàng.", true);
+            return;
+        }
 
-            int confirm = JOptionPane.showConfirmDialog(view, "Bạn có chắc chắn muốn xóa sản phẩm này khỏi hóa đơn?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
-            if (confirm == JOptionPane.YES_OPTION) {
-                view.removeProductFromCart(selectedRow);
-                view.displayMessage("Đã xóa sản phẩm khỏi hóa đơn.", false);
-            }
+        int confirm = JOptionPane.showConfirmDialog(view, "Bạn có chắc muốn xóa sản phẩm này khỏi hóa đơn?",
+                "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            view.removeProductFromCart(selectedRow);
+            view.displayMessage("Đã xóa sản phẩm khỏi giỏ hàng.", false);
         }
     }
 
     /**
-     * Xử lý sự kiện khi nhấn nút "Sửa số lượng SP".
-     * Cho phép người dùng sửa số lượng của một sản phẩm trong giỏ hàng.
+     * Xử lý logic khi người dùng nhấn nút "Tạo hóa đơn".
+     * Bao gồm xác thực dữ liệu, tạo hóa đơn và chi tiết hóa đơn,
+     * và cập nhật số lượng tồn kho.
      */
-    class UpdateQuantityInCartButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            int selectedRow = view.getCartTable().getSelectedRow();
-            if (selectedRow == -1) {
-                view.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để sửa số lượng.", true);
-                return;
-            }
-    
-            List<ChiTietHoaDon> cartItems = view.getCurrentCartItems();
-            ChiTietHoaDon selectedCartItem = cartItems.get(selectedRow);
-            
-            // Get current product details to check stock
-            SanPham productInStock = sanPhamService.getSanPhamById(selectedCartItem.getMaSanPham());
-            if (productInStock == null) {
-                view.displayMessage("Không tìm thấy thông tin sản phẩm trong kho. Không thể cập nhật.", true);
-                return;
-            }
-    
-            String input = JOptionPane.showInputDialog(view, 
-                "Nhập số lượng mới cho sản phẩm '" + view.getCartTable().getValueAt(selectedRow, 1) + "' (Tồn kho: " + productInStock.getSoLuongTon() + "):", 
-                selectedCartItem.getSoLuong());
-    
-            if (input != null && !input.isEmpty()) {
-                try {
-                    int newQuantity = Integer.parseInt(input.trim());
-                    if (newQuantity <= 0) {
-                        view.displayMessage("Số lượng phải lớn hơn 0.", true);
-                        return;
-                    }
-                    
-                    // Calculate available stock considering the current item's quantity in cart
-                    // New stock = (Original stock + Quantity of this item already in cart) - New requested quantity
-                    // This logic assumes SanPham.getSoLuongTon() returns the actual stock from DB.
-                    // The 'selectedCartItem.getSoLuong()' is the quantity already reserved for this specific item in the cart.
-                    // So, the available stock for *new* quantity is (productInStock.getSoLuongTon() + old quantity of this item in cart).
-                    int currentItemOldQuantity = selectedCartItem.getSoLuong();
-                    int effectiveStockForThisUpdate = productInStock.getSoLuongTon() + currentItemOldQuantity;
+    private void handleCreateInvoice() {
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            conn.setAutoCommit(false); // Bắt đầu transaction
 
-                    if (newQuantity > effectiveStockForThisUpdate) {
-                         view.displayMessage("Số lượng tồn kho không đủ. Chỉ còn " + productInStock.getSoLuongTon() + " sản phẩm trong kho. Số lượng hiện tại trong hóa đơn là " + currentItemOldQuantity + ". Bạn yêu cầu tổng cộng " + newQuantity + " sản phẩm.", true);
-                         return;
-                    }
-                    
-                    view.updateProductQuantityInCart(selectedRow, newQuantity, productInStock); // Pass productInStock to update total amount
-                    view.displayMessage("Đã cập nhật số lượng sản phẩm.", false);
-    
-                } catch (NumberFormatException ex) {
-                    view.displayMessage("Số lượng không hợp lệ. Vui lòng nhập số nguyên.", true);
-                }
-            }
-        }
-    }
-
-
-    /**
-     * Xử lý sự kiện khi nhấn nút "Tạo hóa đơn".
-     * Tạo hóa đơn và lưu vào cơ sở dữ liệu, cập nhật tồn kho.
-     */
-    class CreateInvoiceButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            // Get customer info
+            // 1. Validate Customer Information
             String maKhachHang = null;
             String tenKhachHangVangLai = null;
             String sdtKhachHangVangLai = null;
+            boolean isRegisteredCustomer = view.getRbRegisteredCustomer().isSelected();
 
-            if (view.getRbRegisteredCustomer().isSelected()) {
-                maKhachHang = view.getTxtMaKhachHang();
+            if (isRegisteredCustomer) {
+                maKhachHang = view.getTxtMaKhachHang().trim();
                 if (maKhachHang.isEmpty()) {
                     view.displayMessage("Vui lòng chọn khách hàng đã đăng ký.", true);
+                    conn.rollback();
+                    return;
+                }
+                // Verify maKhachHang exists in DB
+                if (khachHangService.getKhachHangById(conn, maKhachHang) == null) {
+                    view.displayMessage("Mã khách hàng không tồn tại.", true);
+                    conn.rollback();
                     return;
                 }
             } else { // Walk-in customer
-                tenKhachHangVangLai = view.getTxtTenKhachHang();
-                sdtKhachHangVangLai = view.getTxtSdtKhachHang();
-
+                tenKhachHangVangLai = view.getTxtTenKhachHang().trim();
+                sdtKhachHangVangLai = view.getTxtSdtKhachHang().trim();
                 if (tenKhachHangVangLai.isEmpty()) {
                     view.displayMessage("Vui lòng nhập tên khách hàng vãng lai.", true);
+                    conn.rollback();
                     return;
                 }
-                // SDT is optional for walk-in customer but good practice to have validation
+                // Basic phone number validation (optional but recommended)
+                if (!sdtKhachHangVangLai.matches("\\d{10,11}")) { // Simple regex for 10-11 digits
+                    view.displayMessage("Số điện thoại không hợp lệ (10 hoặc 11 chữ số).", true);
+                    conn.rollback();
+                    return;
+                }
             }
 
-            // Get cart items
+            // 2. Validate Cart Items
             List<ChiTietHoaDon> cartItems = view.getCurrentCartItems();
             if (cartItems.isEmpty()) {
-                view.displayMessage("Vui lòng thêm sản phẩm vào hóa đơn.", true);
+                view.displayMessage("Giỏ hàng trống. Vui lòng thêm sản phẩm.", true);
+                conn.rollback();
                 return;
             }
 
-            // Create HoaDon object
-            HoaDon hoaDon = new HoaDon();
-            hoaDon.setMaKhachHang(maKhachHang);
-            hoaDon.setTenKhachHangVangLai(tenKhachHangVangLai);
-            hoaDon.setSdtKhachHangVangLai(sdtKhachHangVangLai);
-            hoaDon.setMaNhanVienLap(currentLoggedInEmployeeMaNhanVien); // Nhân viên đang đăng nhập
-            hoaDon.setNgayBan(new Date()); // Ngày hiện tại
-            hoaDon.setPhuongThucThanhToan(view.getSelectedPaymentMethod());
-
-            // Attempt to add invoice and its details
-            try {
-                HoaDon createdHoaDon = hoaDonService.taoHoaDonMoi(hoaDon, cartItems); // Gọi phương thức mới
-
-                if (createdHoaDon != null) {
-                    view.displayMessage("Tạo hóa đơn thành công! Mã hóa đơn: " + createdHoaDon.getMaHoaDon(), false);
-                    view.clearInvoiceForm(); // Clear form after successful creation
-                } else {
-                    view.displayMessage("Tạo hóa đơn thất bại. Vui lòng kiểm tra lại thông tin.", true);
+            // Re-check stock for each item in cart before creating invoice
+            for (ChiTietHoaDon item : cartItems) {
+                int availableStock = checkProductStock(item.getMaSanPham());
+                if (item.getSoLuong() > availableStock) {
+                    view.displayMessage("Số lượng sản phẩm '" + item.getMaSanPham() + "' trong giỏ hàng vượt quá tồn kho. Tồn: " + availableStock, true);
+                    conn.rollback();
+                    return;
                 }
-            } catch (SQLException ex) {
-                view.displayMessage("Lỗi cơ sở dữ liệu khi tạo hóa đơn: " + ex.getMessage(), true);
-                ex.printStackTrace();
             }
+
+            // 3. Create HoaDon object
+            HoaDon hoaDon;
+            if (isRegisteredCustomer) {
+                hoaDon = new HoaDon(maKhachHang, maNhanVienLap, view.getSelectedPaymentMethod());
+            } else {
+                hoaDon = new HoaDon(tenKhachHangVangLai, sdtKhachHangVangLai, maNhanVienLap, view.getSelectedPaymentMethod());
+            }
+            // NgayBan is set in constructor to LocalDateTime.now()
+
+            // 4. Save HoaDon to get the generated maHoaDon
+            hoaDonService.addHoaDon(conn, hoaDon); // This should update hoaDon object with its new maHoaDon
+
+            if (hoaDon.getMaHoaDon() == null) {
+                view.displayMessage("Lỗi: Không lấy được mã hóa đơn mới.", true);
+                conn.rollback();
+                return;
+            }
+
+            // 5. Save ChiTietHoaDon and Update ChiTietViTri
+            for (ChiTietHoaDon item : cartItems) {
+                item.setMaHoaDon(hoaDon.getMaHoaDon()); // Set maHoaDon for each detail
+                chiTietHoaDonService.addChiTietHoaDon(conn, item);
+
+                // Update ChiTietViTri (decrement stock)
+                // This is a simplified approach. A more robust system would involve
+                // selecting specific ChiTietViTri entries to decrement based on FIFO/LIFO.
+                // For now, we'll just deduct from existing ChiTietViTri entries.
+                // Assuming `updateChiTietViTriStock` handles finding and updating multiple locations.
+
+                int quantityToDeduct = item.getSoLuong();
+                List<ChiTietViTri> locations = chiTietViTriService.getChiTietViTriByMaSanPham(conn, item.getMaSanPham());
+
+                for (ChiTietViTri ctvt : locations) {
+                    if (quantityToDeduct <= 0) break;
+
+                    int quantityInLocation = ctvt.getSoLuong();
+                    if (quantityInLocation >= quantityToDeduct) {
+                        ctvt.setSoLuong(quantityInLocation - quantityToDeduct);
+                        chiTietViTriService.updateChiTietViTri(conn, ctvt);
+                        quantityToDeduct = 0;
+                    } else {
+                        quantityToDeduct -= quantityInLocation;
+                        ctvt.setSoLuong(0); // Location becomes empty
+                        chiTietViTriService.updateChiTietViTri(conn, ctvt);
+                    }
+                }
+                if (quantityToDeduct > 0) {
+                     // This case should ideally not be reached if initial stock check was accurate,
+                     // but good for defensive programming.
+                    view.displayMessage("Lỗi tồn kho không nhất quán cho sản phẩm: " + item.getMaSanPham(), true);
+                    conn.rollback();
+                    return;
+                }
+            }
+
+            conn.commit(); // Commit transaction if all successful
+            view.displayMessage("Tạo hóa đơn thành công! Mã HD: " + hoaDon.getMaHoaDon(), false);
+            view.clearInvoiceForm(); // Clear the form after successful creation
+            refreshProductComboBox(""); // Re-load products to update stock displays
+        } catch (SQLException ex) {
+            try {
+                if (conn != null) {
+                    conn.rollback(); // Rollback on error
+                }
+            } catch (SQLException rollbackEx) {
+                System.err.println("Lỗi khi rollback: " + rollbackEx.getMessage());
+                rollbackEx.printStackTrace();
+            }
+            view.displayMessage("Lỗi khi tạo hóa đơn: " + ex.getMessage(), true);
+            ex.printStackTrace();
+        } finally {
+            DatabaseConnection.closeConnection(conn);
         }
     }
 
     /**
-     * Xử lý sự kiện khi nhấn nút "Làm mới hóa đơn".
-     * Xóa trắng toàn bộ form.
+     * Xóa trắng toàn bộ form hóa đơn.
      */
-    class ClearFormButtonListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            view.clearInvoiceForm();
-            view.displayMessage("Form đã được làm mới.", false);
-        }
+    private void handleClearForm() {
+        view.clearInvoiceForm();
+        refreshProductComboBox(""); // Refresh product list after clearing
+        view.displayMessage("Đã làm mới form hóa đơn.", false);
     }
 }
-

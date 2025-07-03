@@ -1,20 +1,27 @@
 package system.models.entity;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 public class SaoLuu {
-    private int maSaoLuu;
-    private Date ngaySaoLuu;
+    private Integer maSaoLuu; // Primary Key
+    private LocalDateTime ngaySaoLuu;
     private String loaiSaoLuu;
     private String maNguoiDungThucHien; // Foreign Key
     private String viTriLuuTru;
 
+    // Constructors
     public SaoLuu() {
-        // Default constructor
     }
 
-    public SaoLuu(int maSaoLuu, Date ngaySaoLuu, String loaiSaoLuu, String maNguoiDungThucHien, String viTriLuuTru) {
+    public SaoLuu(String loaiSaoLuu, String maNguoiDungThucHien, String viTriLuuTru) {
+        this.ngaySaoLuu = LocalDateTime.now();
+        this.loaiSaoLuu = loaiSaoLuu;
+        this.maNguoiDungThucHien = maNguoiDungThucHien;
+        this.viTriLuuTru = viTriLuuTru;
+    }
+
+    public SaoLuu(Integer maSaoLuu, LocalDateTime ngaySaoLuu, String loaiSaoLuu, String maNguoiDungThucHien, String viTriLuuTru) {
         this.maSaoLuu = maSaoLuu;
         this.ngaySaoLuu = ngaySaoLuu;
         this.loaiSaoLuu = loaiSaoLuu;
@@ -22,50 +29,60 @@ public class SaoLuu {
         this.viTriLuuTru = viTriLuuTru;
     }
 
-    // Constructor tiện lợi cho việc thêm bản sao lưu mới
-    public SaoLuu(Date ngaySaoLuu, String loaiSaoLuu, String maNguoiDungThucHien, String viTriLuuTru) {
-        this(0, ngaySaoLuu, loaiSaoLuu, maNguoiDungThucHien, viTriLuuTru);
-    }
-
-    // Getters and Setters
-    public int getMaSaoLuu() {
+    // Getters
+    public Integer getMaSaoLuu() {
         return maSaoLuu;
     }
 
-    public void setMaSaoLuu(int maSaoLuu) {
-        this.maSaoLuu = maSaoLuu;
-    }
-
-    public Date getNgaySaoLuu() {
+    public LocalDateTime getNgaySaoLuu() {
         return ngaySaoLuu;
-    }
-
-    public void setNgaySaoLuu(Date ngaySaoLuu) {
-        this.ngaySaoLuu = ngaySaoLuu;
     }
 
     public String getLoaiSaoLuu() {
         return loaiSaoLuu;
     }
 
-    public void setLoaiSaoLuu(String loaiSaoLuu) {
-        this.loaiSaoLuu = loaiSaoLuu;
-    }
-
     public String getMaNguoiDungThucHien() {
         return maNguoiDungThucHien;
-    }
-
-    public void setMaNguoiDungThucHien(String maNguoiDungThucHien) {
-        this.maNguoiDungThucHien = maNguoiDungThucHien;
     }
 
     public String getViTriLuuTru() {
         return viTriLuuTru;
     }
 
+    // Setters
+    public void setMaSaoLuu(Integer maSaoLuu) {
+        this.maSaoLuu = maSaoLuu;
+    }
+
+    public void setNgaySaoLuu(LocalDateTime ngaySaoLuu) {
+        this.ngaySaoLuu = ngaySaoLuu;
+    }
+
+    public void setLoaiSaoLuu(String loaiSaoLuu) {
+        this.loaiSaoLuu = loaiSaoLuu;
+    }
+
+    public void setMaNguoiDungThucHien(String maNguoiDungThucHien) {
+        this.maNguoiDungThucHien = maNguoiDungThucHien;
+    }
+
     public void setViTriLuuTru(String viTriLuuTru) {
         this.viTriLuuTru = viTriLuuTru;
+    }
+
+    // Override equals(), hashCode(), toString()
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SaoLuu saoLuu = (SaoLuu) o;
+        return Objects.equals(maSaoLuu, saoLuu.maSaoLuu);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(maSaoLuu);
     }
 
     @Override
@@ -75,20 +92,6 @@ public class SaoLuu {
                ", ngaySaoLuu=" + ngaySaoLuu +
                ", loaiSaoLuu='" + loaiSaoLuu + '\'' +
                ", maNguoiDungThucHien='" + maNguoiDungThucHien + '\'' +
-               ", viTriLuuTru='" + viTriLuuTru + '\'' +
                '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        SaoLuu saoLuu = (SaoLuu) o;
-        return maSaoLuu == saoLuu.maSaoLuu;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(maSaoLuu);
     }
 }

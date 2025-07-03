@@ -3,45 +3,23 @@ package system.view;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import system.components.*;
+import system.components.*; // Đảm bảo các component này tồn tại và đúng
 import system.controllers.AuthController;
-import system.auth.AuthSession; 	
+import system.auth.AuthSession;
 import system.models.entity.TaiKhoanNguoiDung;
-import system.services.*; // Import tất cả các service bạn cần
+import system.services.*;
+import system.auth.AuthService;
+import system.app.AppServices;
 
 public class LoginForm extends JFrame {
     private RoundedTextField usernameField;
     private RoundedPasswordField passwordField;
-    
-    // Khai báo các service cần thiết để truyền cho MainFrame
-    private SanPhamService sanPhamService;
-    private LoaiSanPhamService loaiSanPhamService;
-    private KhachHangService khachHangService;
-    private TaiKhoanNguoiDungService taiKhoanNguoiDungService;
-    private NhanVienService nhanVienService;
-    private HoaDonService hoaDonService;
-    private PhieuNhapHangService phieuNhapHangService;
-    private BaoCaoService baoCaoService;
-    
-    public LoginForm(SanPhamService sanPhamService,
-            LoaiSanPhamService loaiSanPhamService,
-            KhachHangService khachHangService,
-            TaiKhoanNguoiDungService taiKhoanNguoiDungService,
-            NhanVienService nhanVienService,
-            HoaDonService hoaDonService,
-            PhieuNhapHangService phieuNhapHangService,
-            BaoCaoService baoCaoService) {
-    	
-    	// Inject services
-        this.sanPhamService = sanPhamService;
-        this.loaiSanPhamService = loaiSanPhamService;
-        this.khachHangService = khachHangService;
-        this.taiKhoanNguoiDungService = taiKhoanNguoiDungService;
-        this.nhanVienService = nhanVienService;
-        this.hoaDonService = hoaDonService;
-        this.phieuNhapHangService = phieuNhapHangService;
-        this.baoCaoService = baoCaoService;
-        
+
+    private AuthController authController;
+
+    public LoginForm(AuthController authController) {
+        this.authController = authController;
+
         setTitle("Cửa hàng BLK của ETTN nhaaaa");
         setSize(900, 500);
         setResizable(false);
@@ -49,8 +27,8 @@ public class LoginForm extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
+        // Đảm bảo các đường dẫn ảnh đúng hoặc bỏ qua nếu không có
         setIconImage(new ImageIcon(getClass().getResource("/img/logo.png")).getImage());
-
         ImageIcon backgroundIcon = new ImageIcon(getClass().getResource("/img/bg.png"));
         JLabel backgroundLabel = new JLabel(backgroundIcon);
         backgroundLabel.setLayout(new BorderLayout());
@@ -59,7 +37,7 @@ public class LoginForm extends JFrame {
         JPanel leftPanel = new JPanel();
         leftPanel.setPreferredSize(new Dimension(400, 500));
         leftPanel.setLayout(null);
-        leftPanel.setOpaque(false);
+        leftPanel.setOpaque(false); // Make it transparent to see background
 
         JLabel titleLabel = new JLabel("Đăng nhập");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
@@ -103,9 +81,9 @@ public class LoginForm extends JFrame {
         forgotBtn.setForeground(Color.BLUE);
         forgotBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         leftPanel.add(forgotBtn);
-        
+
+        // Hiệu ứng hover cho nút "Quên mật khẩu"
         Font forgotFont = forgotBtn.getFont();
-        // Gạch chân khi hover vào "Quên mật khẩu"
         forgotBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -135,9 +113,9 @@ public class LoginForm extends JFrame {
         signUpBtn.setForeground(Color.BLUE);
         signUpBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         leftPanel.add(signUpBtn);
-        
+
+        // Hiệu ứng hover cho nút "Đăng ký"
         Font signUpFont = signUpBtn.getFont();
-        // Gạch chân khi hover vào "Đăng ký"
         signUpBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -150,44 +128,45 @@ public class LoginForm extends JFrame {
                 signUpBtn.setText("Đăng ký");
             }
         });
-        
-     // Hành động 
+
+        // --- Hành động của các thành phần UI ---
         usernameField.addActionListener(e -> {
             signInBtn.setPressedTemporarily();
-
             Timer timer = new Timer(500, evt -> signInBtn.doClick());
             timer.setRepeats(false);
             timer.start();
         });
-        
+
         passwordField.addActionListener(e -> {
             signInBtn.setPressedTemporarily();
-
             Timer timer = new Timer(500, evt -> signInBtn.doClick());
             timer.setRepeats(false);
             timer.start();
         });
-        
+
         signInBtn.addActionListener(e -> handleLogin());
-        signUpBtn.addActionListener(e -> new RegisterForm());
-        forgotBtn.addActionListener(e -> new ForgotPasswordForm());
+        
+        signUpBtn.addActionListener(e -> {
+            // Truyền AuthController vào RegisterForm
+            new RegisterForm(authController).setVisible(true);
+        });
+        
+        forgotBtn.addActionListener(e -> {
+            // Truyền AuthController vào ForgotPasswordForm
+            new ForgotPasswordForm(authController).setVisible(true);
+        });
+        
         showPassword.addActionListener(e -> {
             passwordField.setEchoChar(showPassword.isSelected() ? (char) 0 : '•');
         });
 
+        // Phần Slideshow panel
         String[] imagePaths = {
-            "/img/liqi/img1.png", "/img/liqi/img2.png", "/img/liqi/img3.png",
-            "/img/liqi/img4.png", "/img/liqi/img5.png", "/img/liqi/img6.png",
-            "/img/liqi/img7.png", "/img/liqi/img8.png", "/img/liqi/img9.png",
-            "/img/liqi/img10.png"
+                "/img/liqi/img1.png", "/img/liqi/img2.png", "/img/liqi/img3.png",
+                "/img/liqi/img4.png", "/img/liqi/img5.png", "/img/liqi/img6.png",
+                "/img/liqi/img7.png", "/img/liqi/img8.png", "/img/liqi/img9.png",
+                "/img/liqi/img10.png"
         };
-//        String[] imagePaths = {
-//        	    "/img/login_img/img1.png", "/img/login_img/img2.png", "/img/login_img/img3.png",
-//        	    "/img/login_img/img4.png", "/img/login_img/img5.png", "/img/login_img/img6.png",
-//        	    "/img/login_img/img7.png", "/img/login_img/img8.png", "/img/login_img/img9.png",
-//        	    "/img/login_img/img10.png"    
-//        };
-//        
         SlideShowPanel slidePanel = new SlideShowPanel(imagePaths, 430, 430, 50, 1000);
         slidePanel.setPreferredSize(new Dimension(500, 500));
         slidePanel.setOpaque(false);
@@ -203,52 +182,63 @@ public class LoginForm extends JFrame {
         String password = new String(passwordField.getPassword());
 
         if (username.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin.");
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin.", "Lỗi đăng nhập", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        AuthController authController = new AuthController();
+        // Gọi phương thức đăng nhập từ AuthController
         TaiKhoanNguoiDung user = authController.loginWithUsername(username, password);
 
         if (user != null) {
+            System.out.println("Đăng nhập thành công cho user: " + user.getUsername());
             AuthSession.setCurrentUser(user);
             dispose();
-         // Mở MainFrame chung
-            new MainFrame(
-                    sanPhamService,
-                    loaiSanPhamService,
-                    khachHangService,
-                    taiKhoanNguoiDungService,
-                    nhanVienService,
-                    hoaDonService,
-                    phieuNhapHangService,
-                    baoCaoService
-                );
+            System.out.println("LoginForm đã đóng. Đang khởi tạo MainFrame...");
+
+            AppServices appServices = AppServices.getInstance();
+            System.out.println("Đã lấy AppServices instance.");
+
+            // Khối try-catch bao bọc khởi tạo MainFrame
+            try {
+                new MainFrame(
+                    appServices.getSanPhamService(),
+                    appServices.getLoaiSanPhamService(),
+                    appServices.getKhachHangService(),
+                    appServices.getTaiKhoanNguoiDungService(),
+                    appServices.getNhanVienService(),
+                    appServices.getHoaDonService(),
+                    appServices.getChiTietHoaDonService(),
+                    appServices.getPhieuNhapHangService(),
+                    appServices.getChiTietPhieuNhapService(),
+                    appServices.getNhaCungCapService(),
+                    appServices.getViTriDungSanPhamService(),
+                    appServices.getChiTietViTriService(),
+                    appServices.getSaoLuuService(),
+                    appServices.getPhucHoiService(),
+                    appServices.getBaoCaoService()
+                ).setVisible(true);
+                System.out.println("MainFrame đã được khởi tạo và hiển thị.");
+            } catch (Exception ex) {
+                System.err.println("Lỗi khi khởi tạo MainFrame: " + ex.getMessage());
+                ex.printStackTrace(); // In toàn bộ stack trace để dễ debug
+                JOptionPane.showMessageDialog(this, "Có lỗi xảy ra khi tải giao diện chính. Vui lòng thử lại.", "Lỗi hệ thống", JOptionPane.ERROR_MESSAGE);
+            }
         } else {
-            JOptionPane.showMessageDialog(this, "Sai tên đăng nhập hoặc mật khẩu!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Sai tên đăng nhập hoặc mật khẩu!", "Lỗi đăng nhập", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     public static void main(String[] args) {
-    	SanPhamService sanPhamService = SanPhamService.getIns();
-        LoaiSanPhamService loaiSanPhamService = LoaiSanPhamService.getIns();
-        KhachHangService khachHangService = KhachHangService.getIns();
-        TaiKhoanNguoiDungService taiKhoanNguoiDungService = TaiKhoanNguoiDungService.getIns();
-        NhanVienService nhanVienService = NhanVienService.getIns();
-        HoaDonService hoaDonService = HoaDonService.getIns();
-        PhieuNhapHangService phieuNhapHangService = PhieuNhapHangService.getIns();
-        BaoCaoService baoCaoService = BaoCaoService.getIns();
+        // --- Khởi tạo ứng dụng ---
+        AppServices appServices = AppServices.getInstance();
+
+        // Lấy AuthService từ AppServices để tạo AuthController
+        AuthService authService = appServices.getAuthService();
+        AuthController authController = new AuthController(authService);
+
+        // Chạy giao diện trên Event Dispatch Thread (EDT)
         SwingUtilities.invokeLater(() -> {
-            new LoginForm(
-                sanPhamService,
-                loaiSanPhamService,
-                khachHangService,
-                taiKhoanNguoiDungService,
-                nhanVienService,
-                hoaDonService,
-                phieuNhapHangService,
-                baoCaoService
-            ).setVisible(true);
+            new LoginForm(authController).setVisible(true);
         });
     }
 }

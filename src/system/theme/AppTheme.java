@@ -24,6 +24,7 @@ public abstract class AppTheme {
     private Color menuBackgroundColor;
     private Color menuButtonColor;
     private Color menuButtonHoverColor;
+    private Color menuButtonPressColor;
     private Color menuButtonForegroundColor;
 
     // Màu sắc cho Button chung
@@ -81,7 +82,10 @@ public abstract class AppTheme {
 
     public Color getMenuButtonHoverColor() { return menuButtonHoverColor; }
     public void setMenuButtonHoverColor(Color menuButtonHoverColor) { this.menuButtonHoverColor = menuButtonHoverColor; }
-
+    
+    public Color getMenuButtonPressColor() { return menuButtonPressColor; }
+    public void setMenuButtonPressColor(Color menuButtonPressColor) { this.menuButtonPressColor = menuButtonPressColor; }
+    
     public Color getMenuButtonForegroundColor() { return menuButtonForegroundColor; }
     public void setMenuButtonForegroundColor(Color menuButtonForegroundColor) { this.menuButtonForegroundColor = menuButtonForegroundColor; }
 

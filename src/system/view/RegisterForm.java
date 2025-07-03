@@ -3,15 +3,16 @@ package system.view;
 import javax.swing.*;
 import java.awt.*;
 import system.components.*;
-import system.controllers.RegisterController;
+import system.controllers.AuthController; // Thay vì RegisterController
 
 public class RegisterForm extends JFrame {
     private RoundedTextField usernameField, emailField;
     private RoundedPasswordField passField, confirmPassField;
-    private RegisterController controller;
+    private AuthController authController; 
 
-    public RegisterForm() {
-        controller = new RegisterController(this);
+    // Constructor nhận AuthController
+    public RegisterForm(AuthController authController) {
+        this.authController = authController; // Gán AuthController được truyền vào
 
         setTitle("Đăng ký tài khoản");
         setSize(450, 500);
@@ -81,14 +82,40 @@ public class RegisterForm extends JFrame {
             timer.start();
         });
 
-        registerBtn.addActionListener(e -> controller.register(
-            usernameField.getText().trim(),
-            emailField.getText().trim(),
-            new String(passField.getPassword()),
-            new String(confirmPassField.getPassword())
-        ));
+        // Gọi phương thức handleRegister() thay vì controller trực tiếp
+        registerBtn.addActionListener(e -> handleRegister());
 
         setVisible(true);
+    }
+
+    // Phương thức xử lý logic đăng ký
+    private void handleRegister() {
+        String username = usernameField.getText().trim();
+        String email = emailField.getText().trim();
+        String password = new String(passField.getPassword());
+        String confirmPassword = new String(confirmPassField.getPassword());
+
+        if (username.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng điền đầy đủ thông tin.", "Lỗi đăng ký", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (!password.equals(confirmPassword)) {
+            JOptionPane.showMessageDialog(this, "Mật khẩu xác nhận không khớp!", "Lỗi đăng ký", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Gọi phương thức đăng ký từ AuthController
+        // Giả định loại người dùng mặc định là "KhachHang" khi đăng ký từ form này
+        boolean success = authController.registerUser(username, password, email, "KhachHang");
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "Đăng ký tài khoản thành công! Bạn có thể đăng nhập ngay bây giờ.", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+            dispose(); // Đóng form đăng ký
+        } else {
+            // AuthController đã xử lý thông báo lỗi chi tiết hơn nếu có lỗi DB hoặc username trùng lặp
+            JOptionPane.showMessageDialog(this, "Đăng ký thất bại. Tên đăng nhập hoặc Email có thể đã tồn tại, hoặc có lỗi xảy ra.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public void showMessage(String msg) {

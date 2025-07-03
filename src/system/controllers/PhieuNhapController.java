@@ -1,324 +1,354 @@
 package system.controllers;
 
-import system.view.PhieuNhapView;
-import system.services.PhieuNhapHangService; 
-import system.services.SanPhamService; 
-import system.services.NhanVienService; 
-import system.services.ViTriDungSanPhamService; 
-
-import system.models.entity.PhieuNhapHang;
-import system.models.entity.ChiTietPhieuNhap;
-import system.models.entity.SanPham;
-import system.models.entity.TaiKhoanNguoiDung;
-import system.models.entity.NhanVien;
+import system.database.DatabaseConnection;
+import system.models.entity.*;
+import system.services.*;
+import system.view.panels.PhieuNhapView;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
+import java.math.BigDecimal;
+import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Lớp ImportController điều khiển logic nghiệp vụ cho giao diện nhập hàng (ImportView).
- * Nó tương tác với PhieuNhapHangService, SanPhamService và NhanVienService.
- */
 public class PhieuNhapController {
-    private PhieuNhapView view;
+
+    private PhieuNhapView phieuNhapView;
     private PhieuNhapHangService phieuNhapHangService;
+    private ChiTietPhieuNhapService chiTietPhieuNhapService;
     private SanPhamService sanPhamService;
-    private NhanVienService nhanVienService;
+    private NhaCungCapService nhaCungCapService;
+    private ChiTietViTriService chiTietViTriService;
+    private LoaiSanPhamService loaiSanPhamService; // Optional, depending on specific product display needs
 
-    private String currentLoggedInEmployeeMaNhanVien; // Mã nhân viên đang đăng nhập
+    private String maNhanVienLap; // Mã nhân viên lập phiếu
 
-    /**
-     * Constructor khởi tạo ImportController.
-     *
-     * @param view Instance của ImportView.
-     * @param phieuNhapHangService Instance của PhieuNhapHangService.
-     * @param sanPhamService Instance của SanPhamService.
-     * @param nhanVienService Instance của NhanVienService.
-     * @param maNhanVienLapHienTai Mã nhân viên hiện đang đăng nhập (người tạo phiếu nhập).
-     */
-    public PhieuNhapController(PhieuNhapView view, PhieuNhapHangService phieuNhapHangService,
-                            SanPhamService sanPhamService, NhanVienService nhanVienService,
-                            String maNhanVienLapHienTai) {
-        this.view = view;
+    public PhieuNhapController(PhieuNhapView phieuNhapView,
+                               PhieuNhapHangService phieuNhapHangService,
+                               ChiTietPhieuNhapService chiTietPhieuNhapService,
+                               SanPhamService sanPhamService,
+                               NhaCungCapService nhaCungCapService,
+                               ChiTietViTriService chiTietViTriService,
+                               String maNhanVienLap) {
+        this.phieuNhapView = phieuNhapView;
         this.phieuNhapHangService = phieuNhapHangService;
+        this.chiTietPhieuNhapService = chiTietPhieuNhapService;
         this.sanPhamService = sanPhamService;
-        this.nhanVienService = nhanVienService;
-        this.currentLoggedInEmployeeMaNhanVien = maNhanVienLapHienTai;
+        this.nhaCungCapService = nhaCungCapService;
+        this.chiTietViTriService = chiTietViTriService;
+        this.maNhanVienLap = maNhanVienLap; // Get MA NV from MainApplication or Login
 
-        // Đặt mã nhân viên lập phiếu mặc định
-        this.view.setMaNhanVienLap(currentLoggedInEmployeeMaNhanVien);
+        // Set initial data in view
+        this.phieuNhapView.setMaNhanVienLap(maNhanVienLap);
 
-        // Đăng ký các listener cho các thành phần UI
-        this.view.addSearchProductButtonListener(new SearchProductButtonListener());
-        this.view.addAddProductToImportCartButtonListener(new AddProductToImportCartButtonListener());
-        this.view.addRemoveProductFromCartButtonListener(new RemoveProductFromCartButtonListener());
-        this.view.addUpdateQuantityInCartButtonListener(new UpdateQuantityInCartButtonListener());
-        this.view.addUpdatePriceInCartButtonListener(new UpdatePriceInCartButtonListener());
-        this.view.addCreateImportInvoiceButtonListener(new CreateImportInvoiceButtonListener());
-        this.view.addClearFormButtonListener(new ClearFormButtonListener());
-        this.view.getCbProductList().addItemListener(new ProductComboBoxListener());
+        // Add Listeners
+        addEventListeners();
     }
 
-    /**
-     * Xử lý sự kiện khi nhấn nút "Tìm SP".
-     * Tìm kiếm sản phẩm theo tên và hiển thị kết quả lên ComboBox.
-     */
-    class SearchProductButtonListener implements ActionListener {
+    public PhieuNhapController(PhieuNhapView phieuNhapView, PhieuNhapHangService phieuNhapHangService, ChiTietPhieuNhapService chiTietPhieuNhapService, SanPhamService sanPhamService, NhaCungCapService nhaCungCapService, NhanVienService nhanVienService, NhaCungCapService nhaCungCapService1, String maNhanVienLap) {
+    }
+
+    private void addEventListeners() {
+        phieuNhapView.addSearchProductButtonListener(new SearchProductListener());
+        phieuNhapView.addProductComboBoxListener(new ProductComboBoxListener());
+        phieuNhapView.addAddProductToImportCartButtonListener(new AddProductToCartListener());
+        phieuNhapView.addRemoveProductFromCartButtonListener(new RemoveProductFromCartListener());
+        phieuNhapView.addUpdateQuantityInCartButtonListener(new UpdateQuantityInCartListener());
+        phieuNhapView.addUpdatePriceInCartButtonListener(new UpdatePriceInCartListener());
+        phieuNhapView.addCreateImportInvoiceButtonListener(new CreateImportInvoiceListener());
+        phieuNhapView.addClearFormButtonListener(new ClearFormListener());
+    }
+
+    // --- Action Listeners Implementations ---
+
+    private class SearchProductListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            String searchTerm = view.getTxtSearchProduct().getText().trim();
+            String searchTerm = phieuNhapView.getTxtSearchProduct().getText().trim();
             if (searchTerm.isEmpty()) {
-                view.displayMessage("Vui lòng nhập tên sản phẩm để tìm kiếm.", true);
-                view.populateProductComboBox(List.of()); // Clear previous results
+                phieuNhapView.displayMessage("Vui lòng nhập tên sản phẩm để tìm kiếm.", true);
+                phieuNhapView.populateProductComboBox(new ArrayList<>()); // Clear existing items
                 return;
             }
 
-            List<SanPham> foundProducts = sanPhamService.searchSanPhamByName(searchTerm);
-            if (foundProducts.isEmpty()) {
-                view.displayMessage("Không tìm thấy sản phẩm nào với từ khóa '" + searchTerm + "'.", false);
-                view.populateProductComboBox(List.of());
-            } else {
-                List<String> productNames = foundProducts.stream()
-                        .map(SanPham::getTenSanPham)
-                        .collect(Collectors.toList());
-                view.populateProductComboBox(productNames);
-                view.displayMessage("Tìm thấy " + foundProducts.size() + " sản phẩm.", false);
-                if (!productNames.isEmpty()) {
-                    view.getCbProductList().setSelectedIndex(0); // Tự động chọn sản phẩm đầu tiên
+            try (Connection conn = DatabaseConnection.getConnection()) {
+                List<SanPham> foundProducts = sanPhamService.searchSanPhamByName(conn, searchTerm);
+                if (foundProducts.isEmpty()) {
+                    phieuNhapView.displayMessage("Không tìm thấy sản phẩm nào với từ khóa này.", false);
+                    phieuNhapView.populateProductComboBox(new ArrayList<>());
+                } else {
+                    // Store the found products temporarily (or just their names)
+                    List<String> productNames = foundProducts.stream()
+                                                            .map(SanPham::getTenSanPham)
+                                                            .collect(Collectors.toList());
+                    phieuNhapView.populateProductComboBox(productNames);
+                    phieuNhapView.displayMessage("Tìm thấy " + foundProducts.size() + " sản phẩm.", false);
                 }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                phieuNhapView.displayMessage("Lỗi khi tìm kiếm sản phẩm: " + ex.getMessage(), true);
             }
         }
     }
 
-    /**
-     * Xử lý sự kiện khi chọn một sản phẩm từ ComboBox.
-     * Hiển thị chi tiết sản phẩm đã chọn.
-     */
-    class ProductComboBoxListener implements ItemListener {
-        @Override
-        public void itemStateChanged(ItemEvent e) {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                String selectedProductName = (String) view.getCbProductList().getSelectedItem();
-                if (selectedProductName != null) {
-                    SanPham product = sanPhamService.getSanPhamByTen(selectedProductName);
-                    view.displaySelectedProductDetails(product);
-                }
-            }
-        }
-    }
-
-    /**
-     * Xử lý sự kiện khi nhấn nút "Thêm vào phiếu nhập".
-     * Thêm sản phẩm được chọn vào giỏ hàng nhập.
-     */
-    class AddProductToImportCartButtonListener implements ActionListener {
+    private class ProductComboBoxListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            SanPham selectedProduct = view.getSelectedProductInComboBox();
+            String selectedProductName = (String) phieuNhapView.getCbProductList().getSelectedItem();
+            if (selectedProductName == null || selectedProductName.isEmpty()) {
+                phieuNhapView.displaySelectedProductDetails(null); // Clear details
+                return;
+            }
+
+            try (Connection conn = DatabaseConnection.getConnection()) {
+                List<SanPham> products = sanPhamService.searchSanPhamByName(conn, selectedProductName);
+                // In a real scenario, you'd want to retrieve the exact product object
+                // based on ID or a more unique identifier if names can be duplicated.
+                // For simplicity, assume the first match is sufficient or ensure unique names.
+                if (!products.isEmpty()) {
+                    phieuNhapView.displaySelectedProductDetails(products.get(0));
+                } else {
+                    phieuNhapView.displaySelectedProductDetails(null);
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                phieuNhapView.displayMessage("Lỗi khi hiển thị chi tiết sản phẩm: " + ex.getMessage(), true);
+                phieuNhapView.displaySelectedProductDetails(null);
+            }
+        }
+    }
+
+    private class AddProductToCartListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            SanPham selectedProduct = phieuNhapView.getSelectedProductInComboBox();
             if (selectedProduct == null) {
-                view.displayMessage("Vui lòng chọn một sản phẩm để thêm vào phiếu nhập.", true);
+                phieuNhapView.displayMessage("Vui lòng chọn một sản phẩm.", true);
                 return;
             }
 
             int quantity;
             try {
-                quantity = Integer.parseInt(view.getTxtQuantity().getText().trim());
+                quantity = Integer.parseInt(phieuNhapView.getTxtQuantity().getText());
                 if (quantity <= 0) {
-                    view.displayMessage("Số lượng nhập phải lớn hơn 0.", true);
-                    return;
+                    throw new NumberFormatException("Số lượng phải lớn hơn 0.");
                 }
             } catch (NumberFormatException ex) {
-                view.displayMessage("Số lượng không hợp lệ. Vui lòng nhập số nguyên.", true);
+                phieuNhapView.displayMessage("Số lượng không hợp lệ. Vui lòng nhập số nguyên dương.", true);
                 return;
             }
 
-            // Lấy đơn giá nhập. Có thể lấy từ ô input riêng hoặc mặc định là GiaBan của sản phẩm
-            // Để đơn giản, ở đây chúng ta sẽ giả định dùng GiaBan làm đơn giá nhập ban đầu
-            // Trong thực tế, bạn có thể thêm một JTextField cho DonGiaNhap
-            String donGiaNhapStr = JOptionPane.showInputDialog(view, "Nhập đơn giá nhập cho sản phẩm '" + selectedProduct.getTenSanPham() + "':", String.valueOf(selectedProduct.getDonGia()));
-            int donGiaNhap;
-            if (donGiaNhapStr == null || donGiaNhapStr.trim().isEmpty()) {
-                view.displayMessage("Vui lòng nhập đơn giá nhập.", true);
-                return;
-            }
-            try {
-                donGiaNhap = Integer.parseInt(donGiaNhapStr.trim());
-                if (donGiaNhap < 0) {
-                    view.displayMessage("Đơn giá nhập không được âm.", true);
-                    return;
-                }
-            } catch (NumberFormatException ex) {
-                view.displayMessage("Đơn giá nhập không hợp lệ. Vui lòng nhập số nguyên.", true);
-                return;
-            }
+            // For simplicity, assume initial import price is the current selling price (DonGia)
+            // In a real system, you might prompt for a specific import price or fetch it from a supplier's price list.
+            BigDecimal donGiaNhap = selectedProduct.getDonGia();
 
-
-            // Create ChiTietPhieuNhap object
-            ChiTietPhieuNhap ctpn = new ChiTietPhieuNhap();
-            ctpn.setMaSanPham(selectedProduct.getMaSanPham());
-            ctpn.setSoLuong(quantity);
-            ctpn.setDonGiaNhap(donGiaNhap);
-//            ctpn.setThanhTien(quantity * donGiaNhap); // Tính ThanhTien
-
-            view.addProductToImportCart(ctpn, selectedProduct); // Pass SanPham to get its name for display
-            view.displayMessage("Đã thêm '" + selectedProduct.getTenSanPham() + "' vào phiếu nhập.", false);
+            // Check if product already exists in cart. If so, prompt for update or just add.
+            // PhieuNhapView's addProductToImportCart already handles this by summing quantity and updating price.
+            ChiTietPhieuNhap ctpn = new ChiTietPhieuNhap(
+                    null, // maChiTietPhieuNhap (will be generated by DB)
+                    null, // maPhieuNhap (will be set when the main invoice is created)
+                    selectedProduct.getMaSanPham(),
+                    quantity,
+                    donGiaNhap
+            );
+            phieuNhapView.addProductToImportCart(ctpn, selectedProduct);
+            phieuNhapView.displayMessage("Đã thêm/cập nhật sản phẩm " + selectedProduct.getTenSanPham() + " vào phiếu nhập.", false);
         }
     }
 
-    /**
-     * Xử lý sự kiện khi nhấn nút "Xóa SP khỏi phiếu".
-     * Xóa sản phẩm được chọn khỏi giỏ hàng nhập.
-     */
-    class RemoveProductFromCartButtonListener implements ActionListener {
+    private class RemoveProductFromCartListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            int selectedRow = view.getImportCartTable().getSelectedRow();
+            int selectedRow = phieuNhapView.getImportCartTable().getSelectedRow();
             if (selectedRow == -1) {
-                view.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để xóa.", true);
+                phieuNhapView.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để xóa.", true);
                 return;
             }
 
-            int confirm = JOptionPane.showConfirmDialog(view, "Bạn có chắc chắn muốn xóa sản phẩm này khỏi phiếu nhập?", "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(phieuNhapView,
+                    "Bạn có chắc chắn muốn xóa sản phẩm này khỏi phiếu nhập?", "Xác nhận xóa",
+                    JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
-                view.removeProductFromImportCart(selectedRow);
-                view.displayMessage("Đã xóa sản phẩm khỏi phiếu nhập.", false);
+                phieuNhapView.removeProductFromImportCart(selectedRow);
+                phieuNhapView.displayMessage("Đã xóa sản phẩm khỏi phiếu nhập.", false);
             }
         }
     }
 
-    /**
-     * Xử lý sự kiện khi nhấn nút "Sửa số lượng SP".
-     * Cho phép người dùng sửa số lượng của một sản phẩm trong giỏ hàng nhập.
-     */
-    class UpdateQuantityInCartButtonListener implements ActionListener {
+    private class UpdateQuantityInCartListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            int selectedRow = view.getImportCartTable().getSelectedRow();
+            int selectedRow = phieuNhapView.getImportCartTable().getSelectedRow();
             if (selectedRow == -1) {
-                view.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để sửa số lượng.", true);
+                phieuNhapView.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để sửa số lượng.", true);
                 return;
             }
 
-            List<ChiTietPhieuNhap> cartItems = view.getCurrentImportCartItems();
-            ChiTietPhieuNhap selectedCartItem = cartItems.get(selectedRow);
+            String currentQuantityStr = phieuNhapView.getImportCartTable().getValueAt(selectedRow, 3).toString();
+            String newQuantityStr = JOptionPane.showInputDialog(phieuNhapView,
+                    "Nhập số lượng mới:", "Cập nhật số lượng", JOptionPane.QUESTION_MESSAGE,
+                    null, null, currentQuantityStr).toString();
 
-            String input = JOptionPane.showInputDialog(view,
-                "Nhập số lượng mới cho sản phẩm '" + view.getImportCartTable().getValueAt(selectedRow, 1) + "':",
-                String.valueOf(selectedCartItem.getSoLuong()));
-
-            if (input != null && !input.isEmpty()) {
+            if (newQuantityStr != null && !newQuantityStr.trim().isEmpty()) {
                 try {
-                    int newQuantity = Integer.parseInt(input.trim());
+                    int newQuantity = Integer.parseInt(newQuantityStr.trim());
                     if (newQuantity <= 0) {
-                        view.displayMessage("Số lượng phải lớn hơn 0.", true);
+                        phieuNhapView.displayMessage("Số lượng phải là một số nguyên dương.", true);
                         return;
                     }
-                    view.updateProductQuantityInImportCart(selectedRow, newQuantity);
-                    view.displayMessage("Đã cập nhật số lượng sản phẩm.", false);
-
+                    // Find the actual SanPham object to get its current DonGia
+                    String maSanPham = (String) phieuNhapView.getImportCartTable().getValueAt(selectedRow, 0);
+                    try (Connection conn = DatabaseConnection.getConnection()) {
+                        SanPham sanPham = sanPhamService.getSanPhamById(conn, maSanPham);
+                        if (sanPham != null) {
+                            phieuNhapView.updateProductQuantityInImportCart(selectedRow, newQuantity);
+                            phieuNhapView.displayMessage("Đã cập nhật số lượng sản phẩm.", false);
+                        } else {
+                            phieuNhapView.displayMessage("Không tìm thấy thông tin sản phẩm để cập nhật.", true);
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                        phieuNhapView.displayMessage("Lỗi khi lấy thông tin sản phẩm: " + ex.getMessage(), true);
+                    }
                 } catch (NumberFormatException ex) {
-                    view.displayMessage("Số lượng không hợp lệ. Vui lòng nhập số nguyên.", true);
+                    phieuNhapView.displayMessage("Số lượng không hợp lệ. Vui lòng nhập số nguyên dương.", true);
                 }
             }
         }
     }
 
-    /**
-     * Xử lý sự kiện khi nhấn nút "Sửa đơn giá nhập".
-     * Cho phép người dùng sửa đơn giá nhập của một sản phẩm trong giỏ hàng nhập.
-     */
-    class UpdatePriceInCartButtonListener implements ActionListener {
+    private class UpdatePriceInCartListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            int selectedRow = view.getImportCartTable().getSelectedRow();
+            int selectedRow = phieuNhapView.getImportCartTable().getSelectedRow();
             if (selectedRow == -1) {
-                view.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để sửa đơn giá nhập.", true);
+                phieuNhapView.displayMessage("Vui lòng chọn một sản phẩm trong giỏ hàng để sửa đơn giá nhập.", true);
                 return;
             }
 
-            List<ChiTietPhieuNhap> cartItems = view.getCurrentImportCartItems();
-            ChiTietPhieuNhap selectedCartItem = cartItems.get(selectedRow);
+            String currentPriceStr = phieuNhapView.getImportCartTable().getValueAt(selectedRow, 2).toString().replaceAll("[₫,]", ""); // Remove currency symbol and comma
+            String newPriceStr = JOptionPane.showInputDialog(phieuNhapView,
+                    "Nhập đơn giá nhập mới:", "Cập nhật đơn giá nhập", JOptionPane.QUESTION_MESSAGE,
+                    null, null, currentPriceStr).toString();
 
-            String input = JOptionPane.showInputDialog(view,
-                "Nhập đơn giá nhập mới cho sản phẩm '" + view.getImportCartTable().getValueAt(selectedRow, 1) + "':",
-                String.valueOf(selectedCartItem.getDonGiaNhap()));
-
-            if (input != null && !input.isEmpty()) {
+            if (newPriceStr != null && !newPriceStr.trim().isEmpty()) {
                 try {
-                    int newPrice = Integer.parseInt(input.trim());
-                    if (newPrice < 0) {
-                        view.displayMessage("Đơn giá nhập không được âm.", true);
+                    BigDecimal newPrice = new BigDecimal(newPriceStr.trim());
+                    if (newPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                        phieuNhapView.displayMessage("Đơn giá nhập phải là một số dương.", true);
                         return;
                     }
-                    view.updateProductPriceInImportCart(selectedRow, newPrice);
-                    view.displayMessage("Đã cập nhật đơn giá nhập sản phẩm.", false);
-
+                    phieuNhapView.updateProductPriceInImportCart(selectedRow, newPrice); // Note: Using intValueExact, consider implications for fractional prices
+                    phieuNhapView.displayMessage("Đã cập nhật đơn giá nhập của sản phẩm.", false);
                 } catch (NumberFormatException ex) {
-                    view.displayMessage("Đơn giá nhập không hợp lệ. Vui lòng nhập số nguyên.", true);
+                    phieuNhapView.displayMessage("Đơn giá nhập không hợp lệ. Vui lòng nhập số.", true);
                 }
             }
         }
     }
 
-    /**
-     * Xử lý sự kiện khi nhấn nút "Tạo Phiếu Nhập".
-     * Tạo phiếu nhập và lưu vào cơ sở dữ liệu, cập nhật tồn kho.
-     */
-    class CreateImportInvoiceButtonListener implements ActionListener {
+
+    private class CreateImportInvoiceListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            // Get employee info (already set by controller)
-            String maNhanVienThucHien = view.getTxtMaNhanVienLap();
-            if (maNhanVienThucHien.isEmpty()) {
-                view.displayMessage("Thông tin nhân viên lập phiếu không có. Vui lòng thử lại sau.", true);
+            List<ChiTietPhieuNhap> cartItems = phieuNhapView.getCurrentImportCartItems();
+            if (cartItems.isEmpty()) {
+                phieuNhapView.displayMessage("Phiếu nhập rỗng. Vui lòng thêm sản phẩm.", true);
                 return;
             }
 
-            // Get cart items
-            List<ChiTietPhieuNhap> importCartItems = view.getCurrentImportCartItems();
-            if (importCartItems.isEmpty()) {
-                view.displayMessage("Vui lòng thêm sản phẩm vào phiếu nhập.", true);
-                return;
-            }
-
-            // Create PhieuNhapHang object
+            // Prepare PhieuNhapHang object
             PhieuNhapHang phieuNhapHang = new PhieuNhapHang();
-            phieuNhapHang.setNgayNhap(new Date()); // Ngày hiện tại
-            phieuNhapHang.setMaNhanVienThucHien(maNhanVienThucHien);
+            phieuNhapHang.setNgayNhap(LocalDateTime.now());
+            phieuNhapHang.setMaNhanVienThucHien(maNhanVienLap);
+            phieuNhapHang.setMaNhaCungCap(null); // Assuming no supplier selection for now. Can be added later.
 
-            // Attempt to add import invoice and its details
+            Connection conn = null;
             try {
-                PhieuNhapHang createdPhieuNhapHang = phieuNhapHangService.lapPhieuNhapHang(phieuNhapHang, importCartItems);
+                conn = DatabaseConnection.getConnection();
+                conn.setAutoCommit(false); // Start transaction
 
-                if (createdPhieuNhapHang != null) {
-                    view.displayMessage("Tạo phiếu nhập thành công! Mã phiếu nhập: " + createdPhieuNhapHang.getMaPhieuNhap(), false);
-                    view.clearImportForm(); // Clear form after successful creation
-                } else {
-                    view.displayMessage("Tạo phiếu nhập thất bại. Vui lòng kiểm tra lại thông tin.", true);
+                // 1. Add PhieuNhapHang
+                phieuNhapHangService.addPhieuNhapHang(conn, phieuNhapHang);
+                Integer maPhieuNhapMoi = phieuNhapHang.getMaPhieuNhap(); // Get the generated ID
+
+                if (maPhieuNhapMoi == null) {
+                    throw new SQLException("Không thể lấy mã phiếu nhập mới được tạo.");
                 }
+
+                // 2. Add ChiTietPhieuNhap and update SanPham (SoLuongTon) and ChiTietViTri
+                for (ChiTietPhieuNhap item : cartItems) {
+                    item.setMaPhieuNhap(maPhieuNhapMoi);
+                    chiTietPhieuNhapService.addChiTietPhieuNhap(conn, item);
+
+                    // Update SanPham (SoLuongTon - assuming this is managed within SanPham or a separate service)
+                    // For now, let's just get the product and add the quantity.
+                    // A proper inventory system would have a dedicated stock management.
+                    SanPham sanPham = sanPhamService.getSanPhamById(conn, item.getMaSanPham());
+                    if (sanPham != null) {
+                        // In a real system, you'd likely update `soLuongTon` in SanPham or in ChiTietViTri.
+                        // Here, we'll update ChiTietViTri (assuming it's the source of truth for stock).
+                        // If no specific shelf/location is chosen, we'd need a default one or a way to select.
+                        // For simplicity, let's assume one default location or product creation handles initial placement.
+
+                        // Example: Try to find an existing ChiTietViTri for this product
+                        // This might require a default NganDung or a method to select it.
+                        // For now, let's assume we always add to a conceptual "general stock" within ChiTietViTri
+                        // Or, we need a "ViTriDungSanPham" to associate with this import.
+                        // Let's assume a "Default" nganDung for now. You'll need to define this.
+                        String defaultNganDung = "N0001"; // TODO: Replace with actual default/selected shelf ID
+
+                        ChiTietViTri chiTietViTri = chiTietViTriService.getChiTietViTriByNganDungAndSanPham(conn, defaultNganDung, item.getMaSanPham());
+                        if (chiTietViTri != null) {
+                            chiTietViTri.setSoLuong(chiTietViTri.getSoLuong() + item.getSoLuong());
+                            chiTietViTriService.updateChiTietViTri(conn, chiTietViTri);
+                        } else {
+                            // If not found, create a new entry for this product in the default location
+                            chiTietViTri = new ChiTietViTri(defaultNganDung, item.getMaSanPham(), item.getSoLuong());
+                            chiTietViTriService.addChiTietViTri(conn, chiTietViTri);
+                        }
+                    } else {
+                        throw new SQLException("Sản phẩm có mã " + item.getMaSanPham() + " không tồn tại.");
+                    }
+                }
+
+                conn.commit(); // Commit transaction
+                phieuNhapView.displayMessage("Tạo phiếu nhập thành công!", false);
+                phieuNhapView.clearImportForm();
+
             } catch (SQLException ex) {
-                view.displayMessage("Lỗi cơ sở dữ liệu khi tạo phiếu nhập: " + ex.getMessage(), true);
+                if (conn != null) {
+                    try {
+                        conn.rollback(); // Rollback on error
+                    } catch (SQLException rollbackEx) {
+                        rollbackEx.printStackTrace();
+                    }
+                }
                 ex.printStackTrace();
+                phieuNhapView.displayMessage("Lỗi khi tạo phiếu nhập: " + ex.getMessage(), true);
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.setAutoCommit(true); // Reset auto-commit
+                        conn.close();
+                    } catch (SQLException closeEx) {
+                        closeEx.printStackTrace();
+                    }
+                }
             }
         }
     }
 
-    /**
-     * Xử lý sự kiện khi nhấn nút "Làm mới Phiếu".
-     * Xóa trắng toàn bộ form.
-     */
-    class ClearFormButtonListener implements ActionListener {
+    private class ClearFormListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            view.clearImportForm();
-            view.displayMessage("Form đã được làm mới.", false);
+            phieuNhapView.clearImportForm();
+            phieuNhapView.displayMessage("Form đã được làm mới.", false);
         }
     }
 }

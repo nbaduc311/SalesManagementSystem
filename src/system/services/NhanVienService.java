@@ -1,105 +1,22 @@
-package system.services; 
+// system.services/NhanVienService.java (Điều chỉnh)
+package system.services;
 
-import system.models.dao.NhanVienDAO;
 import system.models.entity.NhanVien;
-import system.database.*;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 
-public class NhanVienService {
+public interface NhanVienService {
+    // Đã loại bỏ tham số username và password
+    void addNhanVien(Connection conn, NhanVien nhanVien) throws SQLException; // Sửa lại kiểu trả về thành void
 
-    private NhanVienDAO nhanVienDAO;
-    private static NhanVienService instance;
-
-    private NhanVienService() {
-        this.nhanVienDAO = NhanVienDAO.getIns(); // Đảm bảo NhanVienDAO là Singleton
-    }
-
-    public static NhanVienService getIns() {
-        if (instance == null) {
-            instance = new NhanVienService();
-        }
-        return instance;
-    }
-
-    // Các phương thức CRUD cơ bản (giữ nguyên hoặc cập nhật nếu cần)
-    public NhanVien addNhanVien(NhanVien nhanVien) throws SQLException {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
-            return nhanVienDAO.add(conn, nhanVien);
-        } finally {
-            if (conn != null) conn.close();
-        }
-    }
-
-    public NhanVien getById(String maNhanVien) {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
-            return nhanVienDAO.getById(conn, maNhanVien);
-        } catch (SQLException e) {
-            System.err.println("Lỗi khi lấy nhân viên theo ID: " + e.getMessage());
-            return null;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.close();
-                } catch (SQLException ex) {
-                    System.err.println("Lỗi khi đóng kết nối: " + ex.getMessage());
-                }
-            }
-        }
-    }
-
-    public boolean updateNhanVien(NhanVien nhanVien) throws SQLException {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
-            return nhanVienDAO.update(conn, nhanVien);
-        } finally {
-            if (conn != null) conn.close();
-        }
-    }
-
-    public boolean deleteNhanVien(String maNhanVien) throws SQLException {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
-            return nhanVienDAO.delete(conn, maNhanVien);
-        } finally {
-            if (conn != null) conn.close();
-        }
-    }
-
-    public List<NhanVien> getAllNhanVien() {
-        return nhanVienDAO.getAll();
-    }
-
-    /**
-     * Lấy thông tin nhân viên dựa trên mã người dùng (MaNguoiDung).
-     *
-     * @param maNguoiDung Mã người dùng liên kết với nhân viên.
-     * @return Đối tượng NhanVien nếu tìm thấy, null nếu không.
-     */
-    public NhanVien getNhanVienByMaNguoiDung(String maNguoiDung) {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getConnection();
-            return nhanVienDAO.getNhanVienByMaNguoiDung(conn, maNguoiDung); // Cần phương thức này trong NhanVienDAO
-        } catch (SQLException e) {
-            System.err.println("Lỗi khi lấy nhân viên theo MaNguoiDung: " + e.getMessage());
-            return null;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.close();
-                } catch (SQLException ex) {
-                    System.err.println("Lỗi khi đóng kết nối: " + ex.getMessage());
-                }
-            }
-        }
-    }
+    boolean updateNhanVien(Connection conn, NhanVien nhanVien) throws SQLException;
+    boolean deleteNhanVien(Connection conn, String maNhanVien) throws SQLException;
+    NhanVien getNhanVienById(Connection conn, String maNhanVien) throws SQLException;
+    List<NhanVien> getAllNhanVien(Connection conn) throws SQLException;
+    NhanVien getNhanVienByMaNguoiDung(Connection conn, String maNguoiDung) throws SQLException;
+    NhanVien getNhanVienByCCCD(Connection conn, String cccd) throws SQLException;
+    List<NhanVien> searchNhanVienByName(Connection conn, String name) throws SQLException;
+    List<NhanVien> searchNhanVienBySdt(Connection conn, String sdt) throws SQLException; // Bổ sung phương thức này
+    List<NhanVien> getNhanVienByTrangThai(Connection conn, String trangThai) throws SQLException;
 }
